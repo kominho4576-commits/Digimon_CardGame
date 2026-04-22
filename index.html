@@ -17,13 +17,13 @@
   --card-ratio:63 / 88;
   --font:-apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
 }
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-touch-callout:none}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:linear-gradient(180deg,#eff6ff,#e1edf9);font-family:var(--font);color:var(--text)}
 body{overscroll-behavior:none}
 button,input{font:inherit}
 button{border:none;padding:0;background:none;color:inherit}
 input{outline:none;border:none}
-img{display:block;max-width:100%}
+img{display:block;max-width:100%;pointer-events:none;-webkit-user-drag:none;user-drag:none}
 #app{width:100%;height:100dvh;padding:0}
 .phone{
   position:relative;width:100%;height:100%;margin:0;border-radius:0;overflow:hidden;
@@ -129,6 +129,16 @@ img{display:block;max-width:100%}
 }
 .ready-state.ready{background:linear-gradient(180deg,#b7f7d3,#7fe4b2);color:#184a35}
 .ready-state.offline{background:linear-gradient(180deg,#eff3f7,#dbe2ea);color:#6d8094}
+.status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.net-pill{
+  min-height:30px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.78);
+  display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:1000;
+  box-shadow:0 8px 12px rgba(72,97,126,.10), inset 0 1px 0 rgba(255,255,255,.94)
+}
+.net-dot{width:10px;height:10px;border-radius:50%;background:#99a9bb;box-shadow:0 0 0 3px rgba(153,169,187,.16)}
+.net-pill.online .net-dot{background:#5fd08c;box-shadow:0 0 0 3px rgba(95,208,140,.16)}
+.net-pill.offline .net-dot{background:#ff8d8d;box-shadow:0 0 0 3px rgba(255,141,141,.18)}
+.net-pill.connecting .net-dot{background:#f1c76e;box-shadow:0 0 0 3px rgba(241,199,110,.18)}
 .modal-backdrop{position:absolute;inset:0;z-index:60;background:rgba(15,24,37,.30);backdrop-filter:blur(12px);display:flex;align-items:flex-end;justify-content:center;padding:12px}
 .modal-card{
   width:100%;border-radius:30px;padding:16px;display:grid;gap:12px;
@@ -156,7 +166,7 @@ img{display:block;max-width:100%}
   background:
     radial-gradient(circle at 50% 38%, rgba(255,255,255,.96) 0%, rgba(244,249,255,.92) 17%, rgba(226,238,250,.90) 33%, rgba(183,213,242,.82) 62%, rgba(137,187,232,.92) 100%);
   box-shadow:none;
-  display:grid;grid-template-rows:104px minmax(184px,1fr) 258px;
+  display:grid;grid-template-rows:98px minmax(176px,1fr) 244px;
 }
 .battle-shell::before{
   content:"";position:absolute;inset:0;
@@ -224,7 +234,7 @@ img{display:block;max-width:100%}
 .mini-card .art img{width:100%;height:100%;object-fit:contain}
 .mini-card .power{position:absolute;left:50%;top:3px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;font-size:9px;font-weight:1000}
 .mini-card.deleted{opacity:.28;filter:grayscale(1)}
-.hand-zone{position:relative;z-index:2;padding:12px 12px calc(74px + env(safe-area-inset-bottom));display:grid;grid-template-rows:34px minmax(126px,1fr);gap:14px;min-height:258px}
+.hand-zone{position:relative;z-index:2;padding:6px 12px calc(78px + env(safe-area-inset-bottom));display:block;min-height:244px}
 .prompt-row{position:relative;z-index:8;display:flex;align-items:center;justify-content:center;gap:8px;padding-top:2px}
 .submit-row{position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));display:flex;align-items:flex-end;justify-content:center;z-index:9}
 .prompt-pill{
@@ -239,32 +249,45 @@ img{display:block;max-width:100%}
 }
 .submit.ready{background:linear-gradient(180deg,#baf6d3,#7fe0af);color:#164935}
 .hand-wrap{
-  position:relative;height:100%;min-height:126px;margin-top:8px;margin-bottom:0;overflow:visible;
+  position:relative;height:100%;min-height:130px;margin-top:0;margin-bottom:0;overflow:visible;
 }
 .hand-wrap::before{
-  content:"";position:absolute;left:50%;bottom:6px;transform:translateX(-50%);
-  width:min(92%,340px);height:88px;border-radius:999px;
+  content:"";position:absolute;left:50%;bottom:2px;transform:translateX(-50%);
+  width:min(94%,350px);height:92px;border-radius:999px;
   background:radial-gradient(circle, rgba(255,255,255,.34), rgba(255,255,255,0) 70%);
   pointer-events:none;z-index:0;
 }
 .hand-fan{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:100%;height:100%}
 .hand-fan.focus .hand-card:not(.selected){
-  opacity:.9;
-  filter:saturate(.95) brightness(.98) drop-shadow(0 8px 10px rgba(48,74,105,.08));
+  opacity:.84;
+  filter:saturate(.92) brightness(.96) drop-shadow(0 8px 10px rgba(48,74,105,.10));
 }
 .hand-card{
   position:absolute;left:50%;bottom:0;width:clamp(104px,25vw,132px);aspect-ratio:var(--card-ratio);transform-origin:50% 116%;
-  transition:transform .46s cubic-bezier(.18,.88,.22,1), filter .30s ease, opacity .24s ease;
-  pointer-events:auto;will-change:transform, filter, opacity
+  transition:transform .22s ease, filter .22s ease, opacity .18s ease;
+  pointer-events:auto;will-change:transform, filter, opacity;touch-action:manipulation
 }
 .hand-card.selected{
   opacity:1;
-  filter:drop-shadow(0 18px 20px rgba(49,92,160,.24));
+  filter:none;
 }
 .hand-card.selected .card{
-  box-shadow:0 18px 24px rgba(48,74,105,.20), inset 0 0 0 3px rgba(92,146,255,.98), inset 0 0 0 6px rgba(255,255,255,.82);
+  box-shadow:0 16px 20px rgba(48,74,105,.20), inset 0 0 0 3px rgba(92,146,255,.95), inset 0 0 0 6px rgba(255,255,255,.82);
 }
 .hand-card.locked{opacity:.55}
+.hand-card.preview-open{opacity:.7}
+.preview-backdrop{
+  position:fixed;inset:0;z-index:9999;background:rgba(10,18,29,.72);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:22px 18px calc(22px + env(safe-area-inset-bottom));pointer-events:auto
+}
+.preview-shell{
+  position:relative;z-index:10000;width:min(88vw,340px);aspect-ratio:var(--card-ratio);transform:translateY(-8px) scale(1.02);
+  filter:drop-shadow(0 28px 36px rgba(5,11,20,.42))
+}
+.preview-tip{
+  display:none;
+  box-shadow:0 12px 18px rgba(18,28,42,.20)
+}
 .card{
   position:relative;width:100%;height:100%;border-radius:18px;padding:4px;
   background:linear-gradient(180deg,#ffffff,#edf4fa);
@@ -318,30 +341,24 @@ img{display:block;max-width:100%}
 .transfer-overlay{
   position:absolute;inset:0;z-index:43;display:flex;align-items:center;justify-content:center;padding:18px 12px calc(18px + env(safe-area-inset-bottom));background:rgba(8,18,30,.13);backdrop-filter:blur(4px);pointer-events:none
 }
-.transfer-shell{width:min(92%,420px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
-.transfer-stack{display:flex;justify-content:center;gap:8px}
-.transfer-card{width:76px;aspect-ratio:var(--card-ratio);animation:popIn .5s ease}
-.transfer-burst{
-  width:66px;height:66px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;
-  box-shadow:0 16px 22px rgba(36,56,80,.18), inset 0 1px 0 rgba(255,255,255,.98);color:#1f3853
-}
-.transfer-burst strong{font-size:12px;font-weight:1000;line-height:1}
-.transfer-burst span{font-size:10px;font-weight:900;color:#69829a;line-height:1.1;margin-top:3px}
+.transfer-shell{width:min(92%,360px);display:grid;grid-template-rows:auto auto auto;align-items:center;justify-items:center;gap:20px}
+.transfer-stack{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.transfer-stack.sent{animation:transferSentMove 1.2s ease-in-out infinite alternate}
+.transfer-stack.received{animation:transferReceivedMove 1.2s ease-in-out infinite alternate}
+.transfer-card{width:72px;aspect-ratio:var(--card-ratio)}
+.transfer-text{font-size:24px;font-weight:1000;letter-spacing:-.04em;color:#ffffff;text-shadow:0 8px 18px rgba(8,18,30,.34), 0 1px 0 rgba(255,255,255,.24)}
 .draw-overlay{
   position:absolute;inset:0;z-index:42;display:flex;align-items:center;justify-content:center;padding:18px 12px calc(18px + env(safe-area-inset-bottom));background:rgba(8,18,30,.1);backdrop-filter:blur(3px);pointer-events:none
 }
-.draw-shell{width:min(92%,420px);display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px}
-.draw-stack{display:flex;justify-content:center;gap:10px}
-.draw-card{width:86px;aspect-ratio:var(--card-ratio);animation:popIn .56s ease}
-.draw-burst{
-  min-width:76px;min-height:76px;border-radius:50%;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;
-  box-shadow:0 16px 22px rgba(36,56,80,.18), inset 0 1px 0 rgba(255,255,255,.98);color:#1f3853
-}
-.draw-burst strong{font-size:13px;font-weight:1000;line-height:1}
-.draw-burst span{font-size:11px;font-weight:900;color:#69829a;line-height:1.1;margin-top:3px}
+.draw-shell{width:min(92%,420px);display:grid;grid-template-rows:auto auto;align-items:center;justify-items:center;gap:20px}
+.draw-text{font-size:24px;font-weight:1000;letter-spacing:-.04em;color:#ffffff;text-shadow:0 8px 18px rgba(8,18,30,.34), 0 1px 0 rgba(255,255,255,.24)}
+.draw-stack{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.draw-card{width:82px;aspect-ratio:var(--card-ratio)}
+@keyframes transferSentMove{0%{transform:translateY(0)}100%{transform:translateY(10px)}}
+@keyframes transferReceivedMove{0%{transform:translateY(0)}100%{transform:translateY(-10px)}}
 .reveal-shell{width:min(92%,420px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
 .reveal-stack{display:flex;justify-content:center;gap:8px}
-.reveal-card{width:84px;aspect-ratio:var(--card-ratio);animation:popIn .58s ease}
+.reveal-card{width:84px;aspect-ratio:var(--card-ratio)}
 .vs-burst{
   width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,.88);display:grid;place-items:center;font-size:13px;font-weight:1000;color:#1f3853;
   box-shadow:0 16px 22px rgba(36,56,80,.18), inset 0 1px 0 rgba(255,255,255,.98)
@@ -380,10 +397,10 @@ img{display:block;max-width:100%}
 }
 @media (max-width:390px){
   .title-main{font-size:22px}
-  .battle-shell{grid-template-rows:102px minmax(174px,1fr) 236px}
-  .lane{min-height:152px}
-  .hand-zone{min-height:236px;padding:12px 10px calc(74px + env(safe-area-inset-bottom))}
-  .hand-wrap{min-height:118px;margin-top:6px}
+  .battle-shell{grid-template-rows:96px minmax(166px,1fr) 226px}
+  .lane{min-height:146px}
+  .hand-zone{min-height:226px;padding:4px 10px calc(78px + env(safe-area-inset-bottom))}
+  .hand-wrap{min-height:122px;margin-top:0}
   .hand-card{width:clamp(94px,24vw,122px)}
   .reveal-card{width:74px}
 }
@@ -863,7 +880,21 @@ const state = {
     roomCodeDraft:'',
     roomNameDraft:'새 디지털 룸',
     createPrivate:false,
+    previewCardId:null,
+    previewCardData:null,
+    longPressTimer:null,
+    longPressCardId:null,
+    longPressTriggered:false,
+    previewOpenedAt:0,
+    lastTappedCardId:null,
+    lastTappedAt:0,
+    suppressCardClick:false,
+    touchPressStartAt:0,
+    touchPressCardId:null,
+    touchPreviewOpened:false,
+    ignoreNextToggleCardId:null,
   },
+  connection:{ status:'offline', lastMessage:'' },
   meta:{ prevRound:null, prevPhase:null, revealSig:'', transferSig:'', drawSig:'', bannerSig:'', bannerTimer:null, revealTimer:null, transferTimer:null, drawTimer:null, lastResultSig:'' }
 };
 
@@ -1034,7 +1065,7 @@ function applyBattleView(view){
           state.ui.draw = null;
           render();
         }
-      }, 2050);
+      }, 3400);
     }else if(!drawSig){
       state.meta.drawSig = '';
       state.ui.draw = null;
@@ -1056,7 +1087,7 @@ function applyBattleView(view){
           state.ui.transfer = null;
           render();
         }
-      }, 2050);
+      }, 3400);
     }else if(!transferSig){
       state.meta.transferSig = '';
       state.ui.transfer = null;
@@ -1102,6 +1133,22 @@ function ensureSocket(){
   if(state.online.socket) return state.online.socket;
   const socket = io(SERVER_URL, { transports:['websocket','polling'] });
   state.online.socket = socket;
+  state.connection.status = 'connecting';
+  socket.on('connect', () => {
+    state.connection.status = 'online';
+    state.connection.lastMessage = '서버 연결됨';
+    render();
+  });
+  socket.on('connect_error', () => {
+    state.connection.status = 'offline';
+    state.connection.lastMessage = '서버 연결 실패';
+    render();
+  });
+  socket.on('disconnect', () => {
+    state.connection.status = 'offline';
+    state.connection.lastMessage = '서버 연결 끊김';
+    render();
+  });
   socket.on('room_list', list => {
     state.online.roomList = Array.isArray(list) ? list.slice(0,3) : [];
     render();
@@ -1119,6 +1166,8 @@ function ensureSocket(){
     state.ui.selectedIds = [];
     state.ui.handExpanded = false;
     state.ui.battleMenuOpen = false;
+  state.ui.previewCardId = null;
+    state.ui.previewCardId = null;
     if(enteringBattle){
       state.meta.prevRound = null;
       state.meta.prevPhase = null;
@@ -1158,6 +1207,7 @@ function startAiBattle(){
   state.ui.selectedIds = [];
   state.ui.handExpanded = false;
   state.ui.battleMenuOpen = false;
+  state.ui.previewCardId = null;
   state.meta.prevRound = null;
   state.meta.prevPhase = null;
   state.meta.revealSig = '';
@@ -1179,6 +1229,7 @@ function backToMenu(){
   state.ui.selectedIds = [];
   state.ui.handExpanded = false;
   state.ui.battleMenuOpen = false;
+  state.ui.previewCardId = null;
   state.screen = 'menu';
   state.meta.prevRound = null;
   state.meta.prevPhase = null;
@@ -1297,7 +1348,15 @@ function submitSelection(){
 function toggleCardSelection(cardId){
   const view = currentView();
   if(!view || !view.canAct) return;
-  const ids = state.ui.selectedIds.slice();
+  if(state.ui.ignoreNextToggleCardId === cardId){
+    state.ui.ignoreNextToggleCardId = null;
+    return;
+  }
+  if(state.ui.suppressCardClick){
+    state.ui.suppressCardClick = false;
+    return;
+  }
+    const ids = state.ui.selectedIds.slice();
   const idx = ids.indexOf(cardId);
   if(idx >= 0) ids.splice(idx, 1);
   else{
@@ -1305,9 +1364,62 @@ function toggleCardSelection(cardId){
     ids.push(cardId);
   }
   state.ui.selectedIds = ids;
-  state.ui.handExpanded = true;
   audio.select();
   render();
+}
+function openCardPreview(cardId){
+  return;
+}
+function closeCardPreview(force=false){
+  state.ui.previewCardId = null;
+  state.ui.previewCardData = null;
+  state.ui.previewOpenedAt = 0;
+}
+function cancelCardLongPress(){
+  if(state.ui.longPressTimer){
+    clearTimeout(state.ui.longPressTimer);
+    state.ui.longPressTimer = null;
+  }
+  state.ui.longPressCardId = null;
+}
+function handleTouchCardStart(event){
+  const cardButton = event.target.closest('.hand-card[data-card-id]');
+  if(!cardButton) return;
+  const cardId = cardButton.dataset.cardId;
+  cancelCardLongPress();
+  state.ui.longPressTriggered = false;
+  state.ui.touchPreviewOpened = false;
+  state.ui.touchPressStartAt = Date.now();
+  state.ui.touchPressCardId = cardId;
+  state.ui.longPressCardId = cardId;
+  state.ui.longPressTimer = setTimeout(() => {
+    state.ui.touchPreviewOpened = false;
+    state.ui.longPressTimer = null;
+  }, 260);
+}
+function handleTouchCardEnd(){
+  const cardId = state.ui.touchPressCardId;
+  const startedAt = state.ui.touchPressStartAt || 0;
+  const heldFor = startedAt ? (Date.now() - startedAt) : 0;
+  const openedPreview = !!state.ui.touchPreviewOpened;
+  cancelCardLongPress();
+  state.ui.touchPressStartAt = 0;
+  state.ui.touchPressCardId = null;
+  state.ui.touchPreviewOpened = false;
+  if(!cardId) return;
+  if(openedPreview || heldFor >= 260){
+    return;
+  }
+  state.ui.ignoreNextToggleCardId = cardId;
+  toggleCardSelection(cardId);
+  setTimeout(() => {
+    if(state.ui.ignoreNextToggleCardId === cardId) state.ui.ignoreNextToggleCardId = null;
+  }, 320);
+}
+function findCardInView(cardId){
+  const view = currentView();
+  if(!view) return null;
+  return (view.hand || []).find(card => card.id === cardId) || null;
 }
 
 function renderMiniCard(card, ty, rot){
@@ -1356,16 +1468,20 @@ function renderCardHtml(card){
   `;
 }
 function renderHandCard(card, selected, locked, style){
-  return `<button class="hand-card ${selected ? 'selected' : ''} ${locked ? 'locked' : ''}" data-action="toggle-card" data-card-id="${card.id}" style="${style}">${renderCardHtml(card)}</button>`;
+  const previewOpen = state.ui.previewCardId === card.id;
+  return `
+    <button class="hand-card ${selected ? 'selected' : ''} ${locked ? 'locked' : ''} ${previewOpen ? 'preview-open' : ''}" data-action="toggle-card" data-card-id="${card.id}" style="${style}">
+      ${renderCardHtml(card)}
+    </button>`;
 }
 function renderTransfer(){
   const transfer = state.ui.transfer;
   return `
     <div class="transfer-overlay">
       <div class="transfer-shell">
-        <div class="transfer-stack">${(transfer.sent || []).map(card => `<div class="transfer-card">${renderCardHtml(card)}</div>`).join('')}</div>
-        <div class="transfer-burst"><strong>교환</strong><span>카드 이동</span></div>
-        <div class="transfer-stack">${(transfer.received || []).map(card => `<div class="transfer-card">${renderCardHtml(card)}</div>`).join('')}</div>
+        <div class="transfer-stack sent">${(transfer.sent || []).map(card => `<div class="transfer-card">${renderCardHtml(card)}</div>`).join('')}</div>
+        <div class="transfer-text">교환</div>
+        <div class="transfer-stack received">${(transfer.received || []).map(card => `<div class="transfer-card">${renderCardHtml(card)}</div>`).join('')}</div>
       </div>
     </div>
   `;
@@ -1375,8 +1491,8 @@ function renderDraw(){
   return `
     <div class="draw-overlay">
       <div class="draw-shell">
+        <div class="draw-text">DRAW</div>
         <div class="draw-stack">${(draw.cards || []).map(card => `<div class="draw-card">${renderCardHtml(card)}</div>`).join('')}</div>
-        <div class="draw-burst"><strong>DRAW</strong><span>카드 2장</span></div>
       </div>
     </div>
   `;
@@ -1390,6 +1506,18 @@ function renderReveal(){
         <div class="reveal-stack">${(reveal.oppCards || []).map(card => `<div class="reveal-card">${renderCardHtml(card)}</div>`).join('')}</div>
         <div class="vs-burst">${reveal.crash ? 'CRASH' : 'OPEN'}</div>
         <div class="reveal-stack">${(reveal.myCards || []).map(card => `<div class="reveal-card">${renderCardHtml(card)}</div>`).join('')}</div>
+      </div>
+    </div>
+  `;
+}
+function renderPeekCards(view){
+  if(view.phase !== 'play_sequential_second' || !Array.isArray(view.peekCards) || !view.peekCards.length) return '';
+  return `
+    <div class="reveal-overlay">
+      <div class="reveal-shell">
+        <div class="reveal-stack">${view.peekCards.map(card => `<div class="reveal-card">${renderCardHtml(card)}</div>`).join('')}</div>
+        <div class="vs-burst">OPEN</div>
+        <div class="reveal-stack"></div>
       </div>
     </div>
   `;
@@ -1460,54 +1588,23 @@ function renderBattle(){
   if(!view) return '';
   const hand = view.you.hand || [];
   const total = Math.max(hand.length, 1);
-  const expanded = state.ui.handExpanded || state.ui.selectedIds.length > 0;
-  const activeId = state.ui.selectedIds.length ? state.ui.selectedIds[state.ui.selectedIds.length - 1] : null;
-  const activeIndex = activeId ? hand.findIndex(card => card.id === activeId) : -1;
-  const selectedIndices = hand
-    .map((card, index) => state.ui.selectedIds.includes(card.id) ? index : -1)
-    .filter(index => index >= 0);
-  const selectionCenter = selectedIndices.length
-    ? selectedIndices.reduce((sum, index) => sum + index, 0) / selectedIndices.length
-    : activeIndex;
-  const selectedMin = selectedIndices.length ? Math.min(...selectedIndices) : -1;
-  const selectedMax = selectedIndices.length ? Math.max(...selectedIndices) : -1;
-  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 390;
-  const usableHandWidth = Math.min(viewportWidth * 0.70, 320);
-  const relaxedStep = expanded ? 18 : 16;
-  const compressedStep = usableHandWidth / Math.max(total - 1, 1);
-  const step = Math.min(relaxedStep, compressedStep);
-  const spread = expanded ? .98 : .94;
+  const middle = (total - 1) / 2;
+  const viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0, 360);
+  const handSafeWidth = Math.max(250, viewportWidth - 34);
+  const preferredWidth = total <= 5 ? 126 : total <= 7 ? 112 : total <= 9 ? 96 : 88;
+  const cardWidth = Math.max(78, Math.min(126, preferredWidth));
+  const maxSpread = Math.max(cardWidth * .58, handSafeWidth - cardWidth - 8);
+  const step = total <= 1 ? 0 : Math.max(9, Math.min(30, maxSpread / (total - 1)));
+  const rotationStep = total <= 5 ? 6.2 : total <= 7 ? 5.1 : total <= 9 ? 4.0 : 3.2;
   const handCards = hand.map((card, index) => {
     const selected = state.ui.selectedIds.includes(card.id);
-    const middle = (total - 1) / 2;
     const distanceFromCenter = Math.abs(index - middle);
-    const baseOffset = (index - middle) * step * spread;
-    const arcLift = expanded ? Math.max(0, .3 - distanceFromCenter * .14) : Math.max(0, .9 - distanceFromCenter * .40);
-    let focusOffset = 0;
-    let focusLift = 0;
-    let focusScale = selected ? 1.03 : 1;
-    if(selectedIndices.length){
-      if(selected){
-        const rank = selectedIndices.indexOf(index);
-        const selectedMiddle = (selectedIndices.length - 1) / 2;
-        focusOffset = (rank - selectedMiddle) * 10;
-        focusLift = 18;
-        focusScale = 1.03;
-      } else {
-        const nearestSelectedDistance = Math.min(...selectedIndices.map(selectedIndex => Math.abs(index - selectedIndex)));
-        if(index < selectedMin) focusOffset = -6 + Math.min(nearestSelectedDistance * 1.8, 5);
-        else if(index > selectedMax) focusOffset = 6 - Math.min(nearestSelectedDistance * 1.8, 5);
-        else focusOffset = 0;
-        if(nearestSelectedDistance === 1) focusLift = 2;
-        if(nearestSelectedDistance > 0) focusScale = .99;
-      }
-    }
-    const rotation = selectedIndices.length
-      ? (index - selectionCenter) * 3.2
-      : (index - middle) * (expanded ? 3.2 : 5.0);
-    const lift = arcLift + focusLift + (selected ? 2 : 0);
-    const z = selected ? 240 + index : 20 + index;
-    const style = `transform:translateX(calc(-50% + ${baseOffset + focusOffset}px)) rotate(${rotation}deg) translateY(-${lift}px) scale(${focusScale}); z-index:${z};`;
+    const baseOffset = (index - middle) * step;
+    const rotation = (index - middle) * rotationStep;
+    const arcLift = Math.max(0, 10 - distanceFromCenter * Math.max(2.2, 5 - total * .22));
+    const selectedLift = selected ? 18 : 0;
+    const z = 20 + index + (selected ? 40 : 0);
+    const style = `width:${cardWidth}px;transform:translateX(calc(-50% + ${baseOffset}px)) rotate(${rotation}deg) translateY(-${arcLift + selectedLift}px); z-index:${z};`;
     return renderHandCard(card, selected, !view.canAct, style);
   }).join('');
   return `
@@ -1545,11 +1642,8 @@ function renderBattle(){
             </div>`).join('')}
         </div>
         <div class="hand-zone">
-          <div class="prompt-row">
-            <button class="prompt-pill" data-action="toggle-hand">${escapeHtml(view.prompt)}</button>
-          </div>
           <div class="hand-wrap">
-            <div class="hand-fan ${activeIndex >= 0 ? 'focus' : ''}">${handCards}</div>
+            <div class="hand-fan">${handCards}</div>
           </div>
           <div class="submit-row">
             ${view.phase === 'finished'
@@ -1564,6 +1658,7 @@ function renderBattle(){
       ${state.ui.draw ? renderDraw() : ''}
       ${state.ui.transfer ? renderTransfer() : ''}
       ${state.ui.reveal ? renderReveal() : ''}
+      ${!state.ui.reveal ? renderPeekCards(view) : ''}
     </div>
   `;
 }
@@ -1597,6 +1692,10 @@ function renderBrowser(){
         </button>
       </div>
       <div class="panel" style="display:grid;gap:10px">
+        <div class="status-row">
+          <div class="net-pill ${escapeHtml(state.connection.status)}"><span class="net-dot"></span><span>${state.connection.status === 'online' ? 'Online' : state.connection.status === 'connecting' ? 'Connecting' : 'Offline'}</span></div>
+          <div class="tiny-pill">${escapeHtml(state.connection.lastMessage || '멀티플레이 서버 상태 확인')}</div>
+        </div>
         <div class="input-shell"><input value="${escapeHtml(state.settings.nickname)}" data-input="nickname" maxlength="16" placeholder="닉네임"></div>
         <div class="action-grid">
           <button class="soft-button primary" data-action="open-create"><span>방 생성</span></button>
@@ -1630,6 +1729,10 @@ function renderBrowser(){
                 <div class="avatar">${room.playerCount}</div>
               </button>`;
           }).join('')}
+        </div>
+        <div class="action-grid">
+          <button class="soft-button secondary" data-action="refresh-rooms"><span>새로고침</span></button>
+          <button class="soft-button primary" data-action="join-picked"><span>${state.ui.roomCodeDraft ? `선택한 방 참가 (${escapeHtml(state.ui.roomCodeDraft)})` : '방을 먼저 선택하세요'}</span></button>
         </div>
       </div>
       ${state.ui.modal ? renderModal() : ''}
@@ -1673,7 +1776,10 @@ function renderLobby(){
           </div>`).join('')}
       </div>
       <div class="panel" style="display:grid;gap:12px;flex:1">
-        <div style="font-size:18px;font-weight:1000">배틀 준비</div>
+        <div class="status-row">
+          <div style="font-size:18px;font-weight:1000">배틀 준비</div>
+          <div class="net-pill ${escapeHtml(state.connection.status)}"><span class="net-dot"></span><span>${state.connection.status === 'online' ? 'Online' : state.connection.status === 'connecting' ? 'Connecting' : 'Offline'}</span></div>
+        </div>
         <div style="font-size:13px;line-height:1.5;color:#64798f">두 플레이어가 모두 준비를 누른 뒤, 방장이 시작을 누르면 즉시 배틀 화면으로 전환됩니다.</div>
         <div style="margin-top:auto" class="action-grid">
           <button class="soft-button primary" data-action="toggle-ready"><span>${me?.ready ? '준비 취소' : '준비'}</span></button>
@@ -1776,6 +1882,9 @@ function renderModal(){
   }
   return '';
 }
+function renderPreview(){
+  return '';
+}
 function renderToasts(){
   return state.ui.toasts.length ? `<div class="toast-wrap">${state.ui.toasts.map(t => `<div class="toast">${escapeHtml(t.message)}</div>`).join('')}</div>` : '';
 }
@@ -1797,7 +1906,7 @@ document.addEventListener('click', event => {
   if(!el) return;
   audio.ensure();
   const action = el.dataset.action;
-  if(!['toggle-card','toggle-hand'].includes(action)) audio.click();
+  if(!['toggle-card','noop'].includes(action)) audio.click();
   switch(action){
     case 'start-ai':
       startAiBattle();
@@ -1851,6 +1960,14 @@ document.addEventListener('click', event => {
       state.ui.modal = null;
       audio.confirm();
       return;
+    case 'join-picked':
+      if(!(state.ui.roomCodeDraft || '').trim()){ toast('방을 먼저 선택하세요.'); return; }
+      ensureSocket().emit('join_room', {
+        nickname:state.settings.nickname.trim() || '테이머',
+        roomCode:state.ui.roomCodeDraft.trim().toUpperCase(),
+      });
+      audio.confirm();
+      return;
     case 'pick-room':
       state.ui.roomCodeDraft = el.dataset.roomCode || '';
       render();
@@ -1880,9 +1997,10 @@ document.addEventListener('click', event => {
     case 'toggle-card':
       toggleCardSelection(el.dataset.cardId);
       return;
-    case 'toggle-hand':
-      state.ui.handExpanded = !state.ui.handExpanded;
-      render();
+    case 'close-preview':
+      closeCardPreview();
+      return;
+    case 'noop':
       return;
     case 'submit-selection':
       submitSelection();
@@ -1915,6 +2033,29 @@ document.addEventListener('click', event => {
       render();
       return;
   }
+});
+
+function beginCardLongPress(event){
+  const cardButton = event.target.closest('.hand-card[data-card-id]');
+  if(!cardButton) return;
+  const cardId = cardButton.dataset.cardId;
+  cancelCardLongPress();
+  state.ui.longPressTriggered = false;
+  state.ui.longPressCardId = cardId;
+  state.ui.longPressTimer = setTimeout(() => {
+    state.ui.longPressTimer = null;
+  }, 260);
+}
+function endCardLongPress(){
+  cancelCardLongPress();
+  state.ui.longPressTriggered = false;
+}
+
+document.addEventListener('contextmenu', event => {
+  if(event.target.closest('.hand-card, .preview-backdrop, .preview-shell, .card, .mini-card, img')) event.preventDefault();
+});
+document.addEventListener('dragstart', event => {
+  if(event.target.closest('.hand-card, .preview-backdrop, .preview-shell, .card, .mini-card, img')) event.preventDefault();
 });
 
 document.addEventListener('input', event => {
