@@ -34,7 +34,9 @@ const CARD_ART_PLAN = {
 
 const SPECIAL_POSITIONS = {
   "forest-1": "double_digivolve",
+  "village-1": "double_digivolve",
   "lake-2": "digiscan",
+  "coast-2": "digiscan",
   "ruins-3": "file_crash",
 };
 
@@ -94,10 +96,15 @@ function createPlayerGameState(roomPlayer, deckCards) {
 }
 
 function drawCards(player, count) {
+  const drawn = [];
   for (let i = 0; i < count; i += 1) {
     const nextCard = player.deck.shift();
-    if (nextCard) player.hand.push(nextCard);
+    if (nextCard) {
+      player.hand.push(nextCard);
+      drawn.push(nextCard);
+    }
   }
+  return drawn;
 }
 
 function removeCardsById(cards, ids) {
@@ -175,6 +182,7 @@ function createGame(room) {
     secondSelectorId: null,
     lastReveal: null,
     lastTransfer: null,
+    lastDraw: null,
     result: null,
   };
 
@@ -194,13 +202,16 @@ function startNextRound(game) {
   }
   game.round += 1;
   game.phase = "transfer";
+  const drawnByPlayer = {};
 
   for (const playerId of game.playerOrder) {
     const player = game.players[playerId];
     player.pendingTransfer = [];
     player.pendingPlay = [];
-    drawCards(player, 2);
+    drawnByPlayer[playerId] = drawCards(player, 2).map((card) => ({ ...card }));
   }
+
+  game.lastDraw = { byPlayer: drawnByPlayer, round: game.round };
 }
 
 function enterPlayPhase(game) {
@@ -539,6 +550,7 @@ function buildGameView(room, playerId) {
     lockedCards,
     lastReveal: game.lastReveal,
     lastTransfer: game.lastTransfer,
+    lastDraw: game.lastDraw,
     result: game.result ? { ...game.result, order: [...game.playerOrder] } : null,
     rematch: {
       requestedByYou: me.rematchWanted,

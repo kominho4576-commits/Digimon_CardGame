@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Digimon_CardGame</title>
+<title>자니펭귄 디지털 배틀</title>
 <style>
 :root{
   --safe-top:max(12px, env(safe-area-inset-top));
@@ -24,17 +24,17 @@ button,input{font:inherit}
 button{border:none;padding:0;background:none;color:inherit}
 input{outline:none;border:none}
 img{display:block;max-width:100%}
-#app{width:100%;height:100dvh;padding:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left)}
+#app{width:100%;height:100dvh;padding:0}
 .phone{
-  position:relative;width:min(100%,var(--phone-max));height:100%;margin:0 auto;border-radius:34px;overflow:hidden;
+  position:relative;width:100%;height:100%;margin:0;border-radius:0;overflow:hidden;
   background:
     radial-gradient(circle at 18% 14%, rgba(130,185,255,.28), transparent 23%),
     radial-gradient(circle at 84% 18%, rgba(255,225,169,.24), transparent 18%),
     radial-gradient(circle at 72% 84%, rgba(148,255,227,.20), transparent 24%),
     linear-gradient(180deg,rgba(255,255,255,.98),rgba(237,245,255,.98));
-  box-shadow:0 24px 60px rgba(42,69,101,.22), inset 0 1px 0 rgba(255,255,255,.98);
+  box-shadow:none;
 }
-.screen{position:absolute;inset:0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;overflow:hidden}
+.screen{position:absolute;inset:0;padding:calc(var(--safe-top) + 10px) 14px calc(var(--safe-bottom) + 10px);display:flex;flex-direction:column;overflow:hidden}
 .soft-button{
   position:relative;min-height:60px;border-radius:24px;padding:0 18px;
   background:linear-gradient(180deg,#fbfdff 0%,#e4eef8 100%);
@@ -150,13 +150,13 @@ img{display:block;max-width:100%}
 }
 .toggle.on{background:linear-gradient(180deg,#79abff,#4b7eff)}
 .toggle.on::after{left:32px}
-.battle-screen{padding:8px 8px calc(8px + env(safe-area-inset-bottom));gap:8px}
+.battle-screen{position:relative;padding:var(--safe-top) 0 var(--safe-bottom);gap:0;overflow:hidden;height:100%;min-height:100dvh}
 .battle-shell{
-  position:relative;flex:1;min-height:0;border-radius:34px;overflow:hidden;
+  position:relative;flex:1;min-height:0;height:100%;border-radius:0;overflow:hidden;
   background:
     radial-gradient(circle at 50% 38%, rgba(255,255,255,.96) 0%, rgba(244,249,255,.92) 17%, rgba(226,238,250,.90) 33%, rgba(183,213,242,.82) 62%, rgba(137,187,232,.92) 100%);
-  box-shadow:0 26px 38px rgba(50,79,111,.22), inset 0 1px 0 rgba(255,255,255,.94);
-  display:grid;grid-template-rows:56px 34px minmax(0,1fr) 182px;
+  box-shadow:none;
+  display:grid;grid-template-rows:104px minmax(206px,1fr) 236px;
 }
 .battle-shell::before{
   content:"";position:absolute;inset:0;
@@ -167,39 +167,42 @@ img{display:block;max-width:100%}
   pointer-events:none
 }
 .battle-top{
-  position:relative;z-index:2;padding:10px 12px 0;display:flex;align-items:flex-start;justify-content:center;min-height:46px
+  position:relative;z-index:2;padding:12px 14px 0;display:flex;flex-direction:column;justify-content:flex-start;min-height:108px
 }
 .enemy-stack{
-  position:absolute;left:12px;top:10px;display:flex;align-items:center;gap:8px;min-width:0;max-width:calc(100% - 118px)
+  position:relative;display:flex;align-items:center;gap:8px;min-width:0;max-width:calc(100% - 72px);padding-right:8px
 }
 .player-mini{min-width:0;display:flex;flex-direction:column;gap:1px}
-.player-mini .name{font-size:15px;font-weight:1000;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-mini .name{font-size:14px;font-weight:1000;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .player-mini .meta{font-size:10px;font-weight:900;color:#55718f}
 .battle-menu-button{
-  position:absolute;right:12px;top:10px;z-index:5
+  position:absolute;right:12px;top:12px;z-index:12
 }
-.battle-phase{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;margin-top:-2px}
-.phase-banner{min-height:28px;padding:0 16px;border-radius:999px;background:rgba(255,255,255,.76);box-shadow:0 10px 16px rgba(66,92,122,.12), inset 0 1px 0 rgba(255,255,255,.92);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:1000;color:#24425f}
-.board{position:relative;z-index:1;padding:4px 8px 0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;min-height:0}
+.round-text{
+  position:relative;margin-top:14px;margin-left:0;width:100%;text-align:center;
+  font-size:15px;font-weight:1000;letter-spacing:-.04em;color:#24405d;
+  text-shadow:0 1px 0 rgba(255,255,255,.45);white-space:nowrap;z-index:6;line-height:1
+}
+.board{position:relative;z-index:1;padding:8px 10px 0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;min-height:206px;align-items:stretch}
 .lane{
-  position:relative;min-width:0;border-radius:24px;overflow:hidden;
-  display:grid;grid-template-rows:1fr 26px 1fr;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.25), inset 0 0 26px rgba(255,255,255,.08)
+  position:relative;min-width:0;min-height:182px;border-radius:22px;overflow:hidden;
+  display:grid;grid-template-rows:1fr 22px 1fr;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.30), inset 0 0 26px rgba(255,255,255,.12), 0 10px 18px rgba(45,74,105,.10)
 }
 .lane::before{
   content:"";position:absolute;inset:-6%;background-image:var(--lane-bg);background-size:cover;background-position:center;
-  opacity:.38;transform:scale(1.1)
+  opacity:.52;transform:scale(1.08)
 }
 .lane::after{
   content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,22,35,.28),rgba(255,255,255,0) 28%,rgba(255,255,255,0) 72%,rgba(10,22,35,.18));
   pointer-events:none
 }
 .lane-top,.lane-bottom,.lane-center{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;min-height:0}
-.lane-top{padding:8px 4px 2px}
-.lane-bottom{padding:2px 4px 8px}
+.lane-top{padding:10px 4px 2px}
+.lane-bottom{padding:2px 4px 10px}
 .lane-chip{
-  width:100%;min-height:22px;padding:0 4px;border-radius:999px;background:rgba(255,255,255,.72);
-  display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  width:auto;max-width:48px;min-height:18px;padding:0 8px;border-radius:999px;background:rgba(255,255,255,.78);
+  display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   box-shadow:0 8px 14px rgba(54,81,109,.12), inset 0 1px 0 rgba(255,255,255,.92)
 }
 .stack{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
@@ -221,27 +224,28 @@ img{display:block;max-width:100%}
 .mini-card .art img{width:100%;height:100%;object-fit:contain}
 .mini-card .power{position:absolute;left:50%;top:3px;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;font-size:9px;font-weight:1000}
 .mini-card.deleted{opacity:.28;filter:grayscale(1)}
-.hand-zone{position:relative;z-index:2;padding:0 10px 6px;display:grid;grid-template-rows:34px minmax(0,1fr) 42px;gap:4px}
-.prompt-row{display:grid;grid-template-columns:1fr;align-items:center;gap:8px}
-.submit-row{display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;padding-top:2px}
+.hand-zone{position:relative;z-index:2;padding:8px 12px calc(72px + env(safe-area-inset-bottom));display:grid;grid-template-rows:34px minmax(118px,1fr);gap:8px;min-height:236px}
+.prompt-row{position:relative;z-index:8;display:flex;align-items:center;justify-content:center;gap:8px;padding-top:4px}
+.submit-row{position:absolute;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));display:flex;align-items:flex-end;justify-content:center;z-index:9}
 .prompt-pill{
-  min-height:34px;padding:0 14px;border-radius:999px;background:rgba(255,255,255,.84);backdrop-filter:blur(8px);
-  box-shadow:0 10px 16px rgba(53,79,108,.14), inset 0 1px 0 rgba(255,255,255,.92);
-  display:flex;align-items:center;justify-content:flex-start;font-size:12px;font-weight:1000;color:#23415d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  width:fit-content;max-width:88%;min-height:32px;padding:0 16px;border-radius:18px;background:rgba(255,255,255,.50);backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,.24);box-shadow:0 6px 12px rgba(53,79,108,.06);
+  display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:1000;color:#23415d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
 .submit{
-  min-width:120px;height:36px;border-radius:999px;padding:0 18px;background:linear-gradient(180deg,#ffffff,#ddecff);
+  min-width:140px;height:40px;border-radius:999px;padding:0 22px;background:linear-gradient(180deg,#ffffff,#ddecff);
   box-shadow:inset 0 1px 0 rgba(255,255,255,1), 0 10px 18px rgba(66,100,140,.18);
   display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:1000;color:#21405d
 }
 .submit.ready{background:linear-gradient(180deg,#baf6d3,#7fe0af);color:#164935}
-.hand-wrap{position:relative;height:100%;min-height:0}
-.hand-fan{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:100%;height:100%}
+.hand-wrap{position:relative;height:100%;min-height:118px;margin-top:2px;margin-bottom:0;overflow:visible}
+.hand-fan{position:absolute;left:50%;bottom:-2px;transform:translateX(-50%);width:100%;height:calc(100% + 4px)}
 .hand-card{
-  position:absolute;left:50%;bottom:0;width:clamp(64px,15vw,82px);aspect-ratio:var(--card-ratio);transform-origin:50% 116%;
-  transition:transform .22s ease, filter .18s ease, bottom .22s ease, left .22s ease;pointer-events:auto
+  position:absolute;left:50%;bottom:0;width:clamp(112px,27vw,142px);aspect-ratio:var(--card-ratio);transform-origin:50% 116%;
+  transition:transform .34s cubic-bezier(.22,.84,.24,1), filter .24s ease, bottom .34s cubic-bezier(.22,.84,.24,1), left .34s cubic-bezier(.22,.84,.24,1);pointer-events:auto;will-change:transform
 }
-.hand-card.selected{filter:drop-shadow(0 18px 18px rgba(49,92,160,.26))}
+.hand-card.selected{filter:drop-shadow(0 14px 16px rgba(49,92,160,.22))}
+.hand-card.selected .card{box-shadow:0 16px 22px rgba(48,74,105,.20), inset 0 0 0 3px rgba(92,146,255,.95), inset 0 0 0 6px rgba(255,255,255,.78)}
 .hand-card.locked{opacity:.55}
 .card{
   position:relative;width:100%;height:100%;border-radius:18px;padding:4px;
@@ -291,10 +295,10 @@ img{display:block;max-width:100%}
 .round-banner strong{display:block;font-size:17px;font-weight:1000;letter-spacing:-.04em}
 .round-banner span{display:block;font-size:11px;color:#678098;font-weight:900;margin-top:2px}
 .reveal-overlay{
-  position:absolute;inset:0;z-index:44;display:flex;align-items:center;justify-content:center;background:rgba(8,18,30,.18);backdrop-filter:blur(5px);pointer-events:none
+  position:absolute;inset:0;z-index:44;display:flex;align-items:center;justify-content:center;padding:18px 12px calc(18px + env(safe-area-inset-bottom));background:rgba(8,18,30,.18);backdrop-filter:blur(5px);pointer-events:none
 }
 .transfer-overlay{
-  position:absolute;inset:0;z-index:43;display:flex;align-items:center;justify-content:center;background:rgba(8,18,30,.13);backdrop-filter:blur(4px);pointer-events:none
+  position:absolute;inset:0;z-index:43;display:flex;align-items:center;justify-content:center;padding:18px 12px calc(18px + env(safe-area-inset-bottom));background:rgba(8,18,30,.13);backdrop-filter:blur(4px);pointer-events:none
 }
 .transfer-shell{width:min(92%,420px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
 .transfer-stack{display:flex;justify-content:center;gap:8px}
@@ -305,6 +309,18 @@ img{display:block;max-width:100%}
 }
 .transfer-burst strong{font-size:12px;font-weight:1000;line-height:1}
 .transfer-burst span{font-size:10px;font-weight:900;color:#69829a;line-height:1.1;margin-top:3px}
+.draw-overlay{
+  position:absolute;inset:0;z-index:42;display:flex;align-items:center;justify-content:center;padding:18px 12px calc(18px + env(safe-area-inset-bottom));background:rgba(8,18,30,.1);backdrop-filter:blur(3px);pointer-events:none
+}
+.draw-shell{width:min(92%,420px);display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px}
+.draw-stack{display:flex;justify-content:center;gap:10px}
+.draw-card{width:86px;aspect-ratio:var(--card-ratio);animation:popIn .34s ease}
+.draw-burst{
+  min-width:76px;min-height:76px;border-radius:50%;background:rgba(255,255,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 16px 22px rgba(36,56,80,.18), inset 0 1px 0 rgba(255,255,255,.98);color:#1f3853
+}
+.draw-burst strong{font-size:13px;font-weight:1000;line-height:1}
+.draw-burst span{font-size:11px;font-weight:900;color:#69829a;line-height:1.1;margin-top:3px}
 .reveal-shell{width:min(92%,420px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
 .reveal-stack{display:flex;justify-content:center;gap:8px}
 .reveal-card{width:84px;aspect-ratio:var(--card-ratio);animation:popIn .34s ease}
@@ -346,8 +362,11 @@ img{display:block;max-width:100%}
 }
 @media (max-width:390px){
   .title-main{font-size:22px}
-  .battle-shell{grid-template-rows:54px 32px minmax(0,1fr) 172px}
-  .hand-card{width:clamp(60px,14vw,74px)}
+  .battle-shell{grid-template-rows:102px minmax(188px,1fr) 224px}
+  .lane{min-height:170px}
+  .hand-zone{min-height:224px;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  .hand-wrap{min-height:114px}
+  .hand-card{width:clamp(102px,26vw,132px)}
   .reveal-card{width:74px}
 }
 </style>
@@ -412,7 +431,9 @@ const CARD_ART_PLAN = {
 
 const SPECIAL_POSITIONS = {
   'forest-1':'double_digivolve',
+  'village-1':'double_digivolve',
   'lake-2':'digiscan',
+  'coast-2':'digiscan',
   'ruins-3':'file_crash',
 };
 
@@ -492,10 +513,15 @@ function removeCardsById(cards, ids){
   return selected;
 }
 function drawCards(player, count){
+  const drawn = [];
   for(let i = 0; i < count; i++){
     const next = player.deck.shift();
-    if(next) player.hand.push(next);
+    if(next){
+      player.hand.push(next);
+      drawn.push(next);
+    }
   }
+  return drawn;
 }
 function calculateFieldTotals(board, fieldKey){
   return board[fieldKey].filter(card => !card.deleted).reduce((sum, card) => sum + card.power, 0);
@@ -521,6 +547,7 @@ function createGameFromPlayers(playerA, playerB){
     secondSelectorId:null,
     lastReveal:null,
     lastTransfer:null,
+    lastDraw:null,
     result:null,
   };
   drawCards(game.players[playerA.id], 2);
@@ -536,12 +563,14 @@ function startNextRound(game){
   if(game.round >= 8){ finalizeGame(game); return; }
   game.round += 1;
   game.phase = 'transfer';
+  const drawnByPlayer = {};
   for(const playerId of game.playerOrder){
     const player = game.players[playerId];
     player.pendingTransfer = [];
     player.pendingPlay = [];
-    drawCards(player, 2);
+    drawnByPlayer[playerId] = drawCards(player, 2).map(card => ({ ...card }));
   }
+  game.lastDraw = { byPlayer: drawnByPlayer, round: game.round };
 }
 function enterPlayPhase(game){
   for(const playerId of game.playerOrder){
@@ -788,6 +817,7 @@ function buildLocalView(game, playerId, roomInfo){
     actionType, canAct, requiredCount, peekCards, lockedCards,
     lastReveal:game.lastReveal,
     lastTransfer:game.lastTransfer,
+    lastDraw:game.lastDraw,
     result:game.result,
     rematch:{ requestedByYou:me.rematchWanted, requestedByOpponent:opponent.rematchWanted }
   };
@@ -811,11 +841,12 @@ const state = {
     banner:null,
     reveal:null,
     transfer:null,
+    draw:null,
     roomCodeDraft:'',
     roomNameDraft:'새 디지털 룸',
     createPrivate:false,
   },
-  meta:{ prevRound:null, prevPhase:null, revealSig:'', transferSig:'', bannerSig:'', bannerTimer:null, revealTimer:null, transferTimer:null, lastResultSig:'' }
+  meta:{ prevRound:null, prevPhase:null, revealSig:'', transferSig:'', drawSig:'', bannerSig:'', bannerTimer:null, revealTimer:null, transferTimer:null, drawTimer:null, lastResultSig:'' }
 };
 
 function persistSettings(){
@@ -920,6 +951,7 @@ const audio = (() => {
     select(){ if(!state.settings.sfxOn) return; ensure(); const t=ctx.currentTime; sfx(520,t,.08,'triangle',.11); sfx(720,t+.05,.08,'triangle',.08); },
     confirm(){ if(!state.settings.sfxOn) return; ensure(); const t=ctx.currentTime; ['A4','C5','E5'].forEach((n,i)=>sfx(N[n], t + i*.06,.08,'triangle',.08)); },
     transfer(){ if(!state.settings.sfxOn) return; ensure(); const t=ctx.currentTime; sfx(460,t,.08,'triangle',.08); sfx(620,t+.05,.08,'triangle',.08); sfx(820,t+.1,.1,'sine',.06); },
+    draw(){ if(!state.settings.sfxOn) return; ensure(); const t=ctx.currentTime; sfx(390,t,.08,'triangle',.07); sfx(520,t+.05,.09,'triangle',.08); sfx(690,t+.11,.11,'sine',.06); },
     reveal(){ if(!state.settings.sfxOn) return; ensure(); const t=ctx.currentTime; sfx(330,t,.15,'sawtooth',.08); sfx(620,t+.08,.16,'triangle',.08); sfx(980,t+.16,.1,'square',.06); },
     victory(){ if(!state.settings.sfxOn) return; ensure(); const t=ctx.currentTime; ['C4','E4','G4','C5'].forEach((n,i)=>sfx(N[n], t+i*.08,.14,'triangle',.09)); },
     defeat(){ if(!state.settings.sfxOn) return; ensure(); const t=ctx.currentTime; ['G4','E4','D4'].forEach((n,i)=>sfx(N[n], t+i*.09,.14,'triangle',.08)); }
@@ -967,6 +999,27 @@ function applyBattleView(view){
       showBanner(`ROUND ${view.round}`, PHASE_LABELS[view.phase] || '', `round-${view.round}`);
     } else if(phaseChanged && view.phase === 'finished'){
       showBanner('BATTLE END', '결과 정산', `phase-${view.round}-finished`);
+    }
+
+    const drawSig = (view.phase === 'transfer' && view.lastDraw) ? `${view.lastDraw.round}|${(view.lastDraw.byPlayer?.[view.you.id] || []).map(card => card.id).join(',')}` : '';
+    if(drawSig && drawSig !== state.meta.drawSig){
+      state.meta.drawSig = drawSig;
+      if(state.meta.drawTimer) clearTimeout(state.meta.drawTimer);
+      state.ui.draw = {
+        id:drawSig,
+        cards:view.lastDraw.byPlayer?.[view.you.id] || [],
+      };
+      audio.draw();
+      render();
+      state.meta.drawTimer = setTimeout(()=>{
+        if(state.ui.draw && state.ui.draw.id === drawSig){
+          state.ui.draw = null;
+          render();
+        }
+      }, 1250);
+    }else if(!drawSig){
+      state.meta.drawSig = '';
+      state.ui.draw = null;
     }
 
     const transferSig = view.lastTransfer ? JSON.stringify(view.lastTransfer) : '';
@@ -1054,13 +1107,16 @@ function ensureSocket(){
       state.meta.revealSig = '';
       state.meta.transferSig = '';
       state.meta.bannerSig = '';
+      state.meta.drawSig = '';
       state.meta.lastResultSig = '';
       if(state.meta.bannerTimer) clearTimeout(state.meta.bannerTimer);
       if(state.meta.revealTimer) clearTimeout(state.meta.revealTimer);
       if(state.meta.transferTimer) clearTimeout(state.meta.transferTimer);
+      if(state.meta.drawTimer) clearTimeout(state.meta.drawTimer);
       state.ui.banner = null;
       state.ui.reveal = null;
       state.ui.transfer = null;
+      state.ui.draw = null;
     }
     audio.setScene('battle');
     applyBattleView(game);
@@ -1296,6 +1352,18 @@ function renderTransfer(){
     </div>
   `;
 }
+function renderDraw(){
+  const draw = state.ui.draw;
+  return `
+    <div class="draw-overlay">
+      <div class="draw-shell">
+        <div class="draw-stack">${(draw.cards || []).map(card => `<div class="draw-card">${renderCardHtml(card)}</div>`).join('')}</div>
+        <div class="draw-burst"><strong>DRAW</strong><span>카드 2장</span></div>
+      </div>
+    </div>
+  `;
+}
+
 function renderReveal(){
   const reveal = state.ui.reveal;
   return `
@@ -1377,21 +1445,28 @@ function renderBattle(){
   const expanded = state.ui.handExpanded || state.ui.selectedIds.length > 0;
   const activeId = state.ui.selectedIds.length ? state.ui.selectedIds[state.ui.selectedIds.length - 1] : null;
   const activeIndex = activeId ? hand.findIndex(card => card.id === activeId) : -1;
-  const step = expanded ? Math.min(22, 86 / Math.max(total - 1, 1)) : Math.min(8, 32 / Math.max(total - 1, 1));
-  const spread = expanded ? 1.08 : .62;
+  const step = expanded ? Math.min(18, 96 / Math.max(total - 1, 1)) : Math.min(14, 60 / Math.max(total - 1, 1));
+  const spread = expanded ? .94 : .86;
   const handCards = hand.map((card, index) => {
     const selected = state.ui.selectedIds.includes(card.id);
     const middle = (total - 1) / 2;
+    const distanceFromCenter = Math.abs(index - middle);
     const baseOffset = (index - middle) * step * spread;
+    const arcLift = expanded ? Math.max(0, 1 - distanceFromCenter * .8) : Math.max(0, 2 - distanceFromCenter * 1.2);
     let focusOffset = 0;
+    let focusLift = 0;
     if(activeIndex >= 0){
-      if(index < activeIndex) focusOffset = -18;
-      else if(index > activeIndex) focusOffset = 18;
+      const distanceFromActive = Math.abs(index - activeIndex);
+      if(index < activeIndex) focusOffset = -14 + Math.min(distanceFromActive * 3, 8);
+      else if(index > activeIndex) focusOffset = 14 - Math.min(distanceFromActive * 3, 8);
+      if(distanceFromActive === 0) focusLift = 18;
+      else if(distanceFromActive === 1) focusLift = 5;
+      else if(distanceFromActive === 2) focusLift = 2;
     }
     const rotation = activeIndex >= 0
-      ? (index - activeIndex) * 5.4
-      : (index - middle) * (expanded ? 4.4 : 7.4);
-    const lift = selected ? 28 : (activeIndex >= 0 && Math.abs(index - activeIndex) === 1 ? 10 : 0);
+      ? (index - activeIndex) * 4.6
+      : (index - middle) * (expanded ? 4.2 : 6.6);
+    const lift = arcLift + focusLift + (selected ? 10 : 0);
     const z = selected ? 200 + state.ui.selectedIds.indexOf(card.id) : 20 + index;
     const style = `transform:translateX(calc(-50% + ${baseOffset + focusOffset}px)) rotate(${rotation}deg) translateY(-${lift}px); z-index:${z};`;
     return renderHandCard(card, selected, !view.canAct, style);
@@ -1401,18 +1476,17 @@ function renderBattle(){
       <div class="battle-shell">
         <div class="battle-top">
           <div class="enemy-stack">
-            <div class="avatar">2</div>
+            <div class="avatar">${escapeHtml((view.opponent.nickname || 'AI').slice(0,2))}</div>
             <div class="player-mini">
               <div class="name">${escapeHtml(view.opponent.nickname)}</div>
               <div class="meta">Deck ${view.opponent.deckCount} · Hand ${view.opponent.handCount}</div>
             </div>
           </div>
-          <div style="display:flex;justify-content:center"><div class="pill">ROUND ${view.round}</div></div>
+          <div class="round-text">ROUND ${view.round}</div>
           <button class="icon-button battle-menu-button" data-action="toggle-battle-menu" aria-label="메뉴">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 7H19" stroke="#24405d" stroke-width="2.4" stroke-linecap="round"/><path d="M5 12H19" stroke="#24405d" stroke-width="2.4" stroke-linecap="round"/><path d="M5 17H19" stroke="#24405d" stroke-width="2.4" stroke-linecap="round"/></svg>
           </button>
         </div>
-        <div class="battle-phase"><div class="phase-banner">${escapeHtml(PHASE_LABELS[view.phase] || '대기')}</div></div>
         <div class="board">
           ${view.fields.map(field => `
             <div class="lane" style="--lane-bg:url('${fieldFor(field.key).bg}')">
@@ -1444,12 +1518,13 @@ function renderBattle(){
               : `<button class="submit ${view.canAct && state.ui.selectedIds.length === view.requiredCount ? 'ready' : ''}" data-action="submit-selection">${view.canAct ? `${state.ui.selectedIds.length}/${view.requiredCount} 카드 내보내기` : 'WAIT'}</button>`}
           </div>
         </div>
-        ${state.ui.banner ? renderBanner() : ''}
-        ${state.ui.transfer ? renderTransfer() : ''}
-        ${state.ui.reveal ? renderReveal() : ''}
         ${state.ui.battleMenuOpen ? renderBattleMenu() : ''}
         ${view.result ? renderResult(view) : ''}
       </div>
+      ${state.ui.banner ? renderBanner() : ''}
+      ${state.ui.draw ? renderDraw() : ''}
+      ${state.ui.transfer ? renderTransfer() : ''}
+      ${state.ui.reveal ? renderReveal() : ''}
     </div>
   `;
 }
