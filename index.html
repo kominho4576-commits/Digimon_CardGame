@@ -384,6 +384,45 @@ img{display:block;max-width:100%;pointer-events:none;-webkit-user-drag:none;user
   border-radius:18px;padding:8px 10px;background:rgba(255,255,255,.78);box-shadow:0 8px 12px rgba(70,96,126,.10), inset 0 1px 0 rgba(255,255,255,.94);
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;font-size:11px;font-weight:1000
 }
+.claim-overlay{
+  position:absolute;inset:0;z-index:51;display:flex;align-items:center;justify-content:center;padding:18px 12px calc(18px + env(safe-area-inset-bottom));
+  background:rgba(8,18,30,.22);backdrop-filter:blur(7px);pointer-events:none
+}
+.claim-shell{width:min(92%,380px);display:grid;gap:12px;justify-items:center;animation:claimIn .34s ease both}
+.claim-stage{
+  width:100%;border-radius:30px;padding:14px;display:grid;gap:12px;
+  background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(232,241,250,.96));
+  box-shadow:0 26px 38px rgba(18,32,50,.24), inset 0 1px 0 rgba(255,255,255,.98)
+}
+.claim-field-card{
+  position:relative;min-height:132px;border-radius:24px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.38), 0 14px 22px rgba(42,66,95,.14)
+}
+.claim-field-card::before{content:"";position:absolute;inset:-8%;background-image:var(--claim-bg);background-size:cover;background-position:center;opacity:.58;transform:scale(1.08)}
+.claim-field-card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(18,34,52,.18),rgba(255,255,255,.58) 72%,rgba(255,255,255,.78))}
+.claim-field-card>*{position:relative;z-index:1}
+.claim-index{font-size:11px;font-weight:1000;color:#56708b}
+.claim-field-name{font-size:23px;font-weight:1000;letter-spacing:-.05em;color:#1f3a55;text-shadow:0 1px 0 rgba(255,255,255,.44)}
+.claim-owner{
+  min-height:38px;padding:0 16px;border-radius:999px;background:rgba(255,255,255,.84);display:inline-flex;align-items:center;justify-content:center;
+  box-shadow:0 12px 18px rgba(38,63,91,.16), inset 0 1px 0 rgba(255,255,255,.96);font-size:14px;font-weight:1000;color:#223d59;animation:claimPulse 1.18s ease-in-out infinite alternate
+}
+.claim-owner.mine{background:linear-gradient(180deg,#baf6d3,#7fe0af);color:#164935}
+.claim-owner.opponent{background:linear-gradient(180deg,#ffd4d4,#ff9f9f);color:#6b2020}
+.claim-owner.tie{background:linear-gradient(180deg,#ffffff,#e8eef5);color:#60758b}
+.claim-score-line{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;width:100%}
+.claim-score-box{
+  min-height:58px;border-radius:20px;background:rgba(255,255,255,.82);box-shadow:0 10px 16px rgba(70,96,126,.12), inset 0 1px 0 rgba(255,255,255,.95);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-weight:1000;min-width:0
+}
+.claim-score-box span{font-size:10px;color:#607890;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.claim-score-box strong{font-size:21px;color:#1f3954}
+.claim-score-box small{font-size:10px;color:#6a8198;font-weight:900}
+.claim-progress{display:flex;align-items:center;justify-content:center;gap:6px}
+.claim-dot{width:8px;height:8px;border-radius:50%;background:rgba(115,139,164,.34);box-shadow:inset 0 1px 0 rgba(255,255,255,.72)}
+.claim-dot.active{width:18px;border-radius:999px;background:rgba(82,132,255,.78)}
+@keyframes claimIn{0%{opacity:0;transform:translateY(20px) scale(.96)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes claimPulse{0%{transform:scale(1)}100%{transform:scale(1.035)}}
 .toast-wrap{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:80;width:min(92%,360px);display:grid;gap:8px;pointer-events:none}
 .toast{min-height:42px;padding:0 16px;border-radius:18px;background:rgba(18,28,42,.90);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;font-weight:1000;box-shadow:0 14px 22px rgba(18,27,41,.28)}
 @keyframes bannerIn{
@@ -877,6 +916,7 @@ const state = {
     reveal:null,
     transfer:null,
     draw:null,
+    resultSequence:null,
     roomCodeDraft:'',
     roomNameDraft:'새 디지털 룸',
     createPrivate:false,
@@ -895,7 +935,7 @@ const state = {
     ignoreNextToggleCardId:null,
   },
   connection:{ status:'offline', lastMessage:'' },
-  meta:{ prevRound:null, prevPhase:null, revealSig:'', transferSig:'', drawSig:'', bannerSig:'', bannerTimer:null, revealTimer:null, transferTimer:null, drawTimer:null, lastResultSig:'' }
+  meta:{ prevRound:null, prevPhase:null, revealSig:'', transferSig:'', drawSig:'', bannerSig:'', bannerTimer:null, revealTimer:null, transferTimer:null, drawTimer:null, lastResultSig:'', resultSequenceSig:'', resultSequenceTimer:null }
 };
 
 function persistSettings(){
@@ -1035,6 +1075,72 @@ function currentView(){
   if(state.local.game) return buildLocalView(state.local.game, 'me', state.local.room);
   return state.online.game;
 }
+function makeResultSig(view){
+  if(!view?.result) return '';
+  const fields = (view.result.fieldBreakdown || []).map(row => ({
+    fieldKey:row.fieldKey,
+    control:row.control,
+    firstPlayerTotal:row.firstPlayerTotal,
+    secondPlayerTotal:row.secondPlayerTotal,
+    firstScore:row.firstScore,
+    secondScore:row.secondScore,
+  }));
+  return JSON.stringify({ totals:view.result.totals, winner:view.result.winner, fields });
+}
+function clearResultSequence(){
+  if(state.meta.resultSequenceTimer) clearTimeout(state.meta.resultSequenceTimer);
+  state.meta.resultSequenceTimer = null;
+  state.ui.resultSequence = null;
+}
+function playFinalResultAudio(view){
+  const latest = view || currentView();
+  if(!latest?.result) return;
+  const myScore = Number(latest.result.totals?.[latest.you.id] || 0);
+  const oppScore = Number(latest.result.totals?.[latest.opponent.id] || 0);
+  if(myScore > oppScore) audio.victory();
+  else if(oppScore > myScore) audio.defeat();
+}
+function startResultSequence(view, sig){
+  clearResultSequence();
+  const rows = (view.result.fieldBreakdown || []).map(row => ({ ...row }));
+  if(!rows.length){ playFinalResultAudio(view); return; }
+  const beginDelay = view.lastReveal ? 2600 : 0;
+  state.ui.resultSequence = {
+    id:sig,
+    pending:beginDelay > 0,
+    index:0,
+    rows,
+    myId:view.you.id,
+    oppId:view.opponent.id,
+    myName:view.you.nickname,
+    oppName:view.opponent.nickname,
+    order:[...(view.result.order || [])],
+  };
+  const finish = () => {
+    if(state.ui.resultSequence?.id !== sig) return;
+    clearResultSequence();
+    playFinalResultAudio(currentView() || view);
+    render();
+  };
+  const step = () => {
+    const seq = state.ui.resultSequence;
+    if(!seq || seq.id !== sig) return;
+    seq.pending = false;
+    audio.reveal();
+    render();
+    if(seq.index < seq.rows.length - 1){
+      state.meta.resultSequenceTimer = setTimeout(() => {
+        if(state.ui.resultSequence?.id !== sig) return;
+        state.ui.resultSequence.index += 1;
+        step();
+      }, 1550);
+    }else{
+      state.meta.resultSequenceTimer = setTimeout(finish, 1650);
+    }
+  };
+  render();
+  state.meta.resultSequenceTimer = setTimeout(step, beginDelay);
+}
 function applyBattleView(view){
   const prevRound = state.meta.prevRound;
   const prevPhase = state.meta.prevPhase;
@@ -1093,7 +1199,7 @@ function applyBattleView(view){
       state.ui.transfer = null;
     }
 
-    const sig = (view.phase === 'round_summary' && view.lastReveal) ? JSON.stringify(view.lastReveal) : '';
+    const sig = ((view.phase === 'round_summary' || view.phase === 'finished') && view.lastReveal) ? JSON.stringify(view.lastReveal) : '';
     if(sig && sig !== state.meta.revealSig){
       state.meta.revealSig = sig;
       if(state.meta.revealTimer) clearTimeout(state.meta.revealTimer);
@@ -1116,15 +1222,15 @@ function applyBattleView(view){
       state.ui.reveal = null;
     }
 
-    const resultSig = view.result ? JSON.stringify(view.result.totals) : '';
+    const resultSig = makeResultSig(view);
     if(view.phase === 'finished' && view.result && resultSig !== state.meta.lastResultSig){
       state.meta.lastResultSig = resultSig;
-      const myScore = Number(view.result.totals?.[view.you.id] || 0);
-      const oppScore = Number(view.result.totals?.[view.opponent.id] || 0);
-      if(myScore > oppScore) audio.victory();
-      else if(oppScore > myScore) audio.defeat();
+      state.meta.resultSequenceSig = resultSig;
+      startResultSequence(view, resultSig);
     } else if(view.phase !== 'finished') {
       state.meta.lastResultSig = '';
+      state.meta.resultSequenceSig = '';
+      clearResultSequence();
     }
   }
   render();
@@ -1176,6 +1282,8 @@ function ensureSocket(){
       state.meta.bannerSig = '';
       state.meta.drawSig = '';
       state.meta.lastResultSig = '';
+      state.meta.resultSequenceSig = '';
+      clearResultSequence();
       if(state.meta.bannerTimer) clearTimeout(state.meta.bannerTimer);
       if(state.meta.revealTimer) clearTimeout(state.meta.revealTimer);
       if(state.meta.transferTimer) clearTimeout(state.meta.transferTimer);
@@ -1213,6 +1321,8 @@ function startAiBattle(){
   state.meta.revealSig = '';
   state.meta.bannerSig = '';
   state.meta.lastResultSig = '';
+  state.meta.resultSequenceSig = '';
+  clearResultSequence();
   if(state.meta.bannerTimer) clearTimeout(state.meta.bannerTimer);
   if(state.meta.revealTimer) clearTimeout(state.meta.revealTimer);
   audio.setScene('battle');
@@ -1237,12 +1347,16 @@ function backToMenu(){
   state.meta.transferSig = '';
   state.meta.bannerSig = '';
   state.meta.lastResultSig = '';
+  state.meta.resultSequenceSig = '';
+  clearResultSequence();
   if(state.meta.bannerTimer) clearTimeout(state.meta.bannerTimer);
   if(state.meta.revealTimer) clearTimeout(state.meta.revealTimer);
   if(state.meta.transferTimer) clearTimeout(state.meta.transferTimer);
   state.ui.banner = null;
   state.ui.reveal = null;
   state.ui.transfer = null;
+  state.ui.draw = null;
+  state.ui.resultSequence = null;
   audio.setScene('menu');
   render();
 }
@@ -1541,6 +1655,41 @@ function renderBattleMenu(){
     </div>
   `;
 }
+function renderResultSequence(view){
+  const seq = state.ui.resultSequence;
+  if(!seq || seq.pending || !seq.rows?.length) return '';
+  const index = Math.max(0, Math.min(seq.index || 0, seq.rows.length - 1));
+  const row = seq.rows[index];
+  const field = fieldFor(row.fieldKey);
+  const firstId = seq.order[0];
+  const meFirst = firstId === seq.myId;
+  const myTotal = meFirst ? row.firstPlayerTotal : row.secondPlayerTotal;
+  const oppTotal = meFirst ? row.secondPlayerTotal : row.firstPlayerTotal;
+  const myFieldScore = meFirst ? row.firstScore : row.secondScore;
+  const oppFieldScore = meFirst ? row.secondScore : row.firstScore;
+  const ownerClass = row.control === 'tie' ? 'tie' : (row.control === seq.myId ? 'mine' : 'opponent');
+  const ownerText = row.control === 'tie' ? '무승부' : (row.control === seq.myId ? `${seq.myName} 점령` : `${seq.oppName} 점령`);
+  const dots = seq.rows.map((_row, dotIndex) => `<span class="claim-dot ${dotIndex === index ? 'active' : ''}"></span>`).join('');
+  return `
+    <div class="claim-overlay">
+      <div class="claim-shell">
+        <div class="claim-stage">
+          <div class="claim-field-card" style="--claim-bg:url('${field.bg}')">
+            <div class="claim-index">TERRITORY ${index + 1} / ${seq.rows.length}</div>
+            <div class="claim-field-name">${escapeHtml(row.fieldName || field.name)}</div>
+            <div class="claim-owner ${ownerClass}">${escapeHtml(ownerText)}</div>
+          </div>
+          <div class="claim-score-line">
+            <div class="claim-score-box"><span>${escapeHtml(seq.myName)}</span><strong>${myTotal}</strong><small>필드 합 · 점수 ${myFieldScore}</small></div>
+            <div class="pill">CONTROL</div>
+            <div class="claim-score-box"><span>${escapeHtml(seq.oppName)}</span><strong>${oppTotal}</strong><small>필드 합 · 점수 ${oppFieldScore}</small></div>
+          </div>
+          <div class="claim-progress">${dots}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
 function renderResult(view){
   const result = view.result;
   const myScore = Number(result.totals[view.you.id] || 0);
@@ -1647,12 +1796,15 @@ function renderBattle(){
           </div>
           <div class="submit-row">
             ${view.phase === 'finished'
-              ? `<button class="submit ready" data-action="request-rematch">다시 하기</button>`
+              ? (state.ui.resultSequence
+                ? `<button class="submit" data-action="noop">점령지 정산 중</button>`
+                : `<button class="submit ready" data-action="request-rematch">다시 하기</button>`)
               : `<button class="submit ${view.canAct && state.ui.selectedIds.length === view.requiredCount ? 'ready' : ''}" data-action="submit-selection">${view.canAct ? `${state.ui.selectedIds.length}/${view.requiredCount} 카드 내보내기` : 'WAIT'}</button>`}
           </div>
         </div>
         ${state.ui.battleMenuOpen ? renderBattleMenu() : ''}
-        ${view.result ? renderResult(view) : ''}
+        ${view.result && !state.ui.resultSequence ? renderResult(view) : ''}
+        ${state.ui.resultSequence ? renderResultSequence(view) : ''}
       </div>
       ${state.ui.banner ? renderBanner() : ''}
       ${state.ui.draw ? renderDraw() : ''}
