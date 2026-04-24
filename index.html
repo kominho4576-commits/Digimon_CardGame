@@ -1832,7 +1832,7 @@ function renderModal(){
   if(state.ui.modal === 'create'){
     return `
       <div class="modal-backdrop" data-action="close-modal">
-        <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-card" data-modal-card>
           <div class="topbar">
             <div class="title-stack">
               <div class="title-main" style="font-size:22px">방 생성</div>
@@ -1861,7 +1861,7 @@ function renderModal(){
   if(state.ui.modal === 'join'){
     return `
       <div class="modal-backdrop" data-action="close-modal">
-        <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-card" data-modal-card>
           <div class="topbar">
             <div class="title-stack">
               <div class="title-main" style="font-size:22px">코드 참가</div>
@@ -1903,7 +1903,9 @@ function render(){
 
 document.addEventListener('click', event => {
   const el = event.target.closest('[data-action]');
+  const insideModalCard = event.target.closest('[data-modal-card]');
   if(!el) return;
+  if(el.classList.contains('modal-backdrop') && insideModalCard) return;
   audio.ensure();
   const action = el.dataset.action;
   if(!['toggle-card','noop'].includes(action)) audio.click();
@@ -1949,7 +1951,9 @@ document.addEventListener('click', event => {
         isPrivate:!!state.ui.createPrivate,
       });
       state.ui.modal = null;
+      state.connection.lastMessage = '방 생성 요청 중';
       audio.confirm();
+      render();
       return;
     case 'confirm-join':
       if(!(state.ui.roomCodeDraft || '').trim()){ toast('방 코드를 입력하세요.'); return; }
@@ -1958,7 +1962,9 @@ document.addEventListener('click', event => {
         roomCode:state.ui.roomCodeDraft.trim().toUpperCase(),
       });
       state.ui.modal = null;
+      state.connection.lastMessage = '방 참가 요청 중';
       audio.confirm();
+      render();
       return;
     case 'join-picked':
       if(!(state.ui.roomCodeDraft || '').trim()){ toast('방을 먼저 선택하세요.'); return; }
