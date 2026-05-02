@@ -425,6 +425,29 @@ img{display:block;max-width:100%;pointer-events:none;-webkit-user-drag:none;user
 @keyframes claimPulse{0%{transform:scale(1)}100%{transform:scale(1.035)}}
 .toast-wrap{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:80;width:min(92%,360px);display:grid;gap:8px;pointer-events:none}
 .toast{min-height:42px;padding:0 16px;border-radius:18px;background:rgba(18,28,42,.90);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px;font-weight:1000;box-shadow:0 14px 22px rgba(18,27,41,.28)}
+
+.opponent-row{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-width:calc(100% - 64px);padding-right:8px}
+.enemy-stack.compact{max-width:none;min-width:0;border-radius:18px;padding:6px 7px;background:rgba(255,255,255,.58);box-shadow:0 8px 14px rgba(46,72,102,.10), inset 0 1px 0 rgba(255,255,255,.72)}
+.enemy-stack.compact .avatar{width:34px;height:34px;font-size:12px;flex:0 0 auto}
+.enemy-stack.compact .player-mini .name{font-size:12px}
+.enemy-stack.compact .player-mini .meta{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opp-relation{font-size:9px;font-weight:1000;color:#55718f;margin-bottom:1px;letter-spacing:-.02em}
+.lane-top.multi{padding:7px 2px 1px}
+.opponent-field-grid{width:100%;height:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;align-items:center}
+.opponent-field-cell{position:relative;min-width:0;height:100%;display:flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(255,255,255,.22)}
+.opponent-field-cell .stack-total{right:1px;top:1px;min-width:18px;height:18px;padding:0 4px;font-size:9px}
+.opponent-field-cell .mini-card{width:min(34px,100%);border-radius:9px}
+.opponent-field-label{position:absolute;left:2px;top:2px;z-index:4;min-width:16px;height:16px;border-radius:999px;background:rgba(255,255,255,.82);font-size:8px;font-weight:1000;display:grid;place-items:center;color:#294762}
+.result-score.multi{grid-template-columns:repeat(3,minmax(0,1fr))}
+.result-score.multi .score-pill strong{font-size:18px}
+.break-row.multi{grid-template-columns:1fr;gap:7px}
+.field-player-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;width:100%}
+.field-player-box{border-radius:14px;background:rgba(255,255,255,.62);padding:5px 4px;text-align:center;min-width:0}
+.field-player-box strong{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field-player-box span{display:block;font-size:10px;color:#607890;font-weight:900}
+.claim-score-line.multi{grid-template-columns:repeat(3,minmax(0,1fr))}
+.claim-score-line.multi .claim-score-box{min-height:54px}
+
 @keyframes bannerIn{
   0%{opacity:0;transform:translateY(-14px) scale(.96)}
   16%,84%{opacity:1;transform:translateY(0) scale(1)}
@@ -563,6 +586,70 @@ function createCardPool(){
 }
 const CARD_POOL = createCardPool();
 
+function normalizeMaxPlayers(value){
+  const parsed = Number(value);
+  return parsed === 3 ? 3 : 2;
+}
+function createDealingDeck(playerCount){
+  const required = normalizeMaxPlayers(playerCount) * 18;
+  const copies = Math.max(1, Math.ceil(required / CARD_POOL.length));
+  const expanded = [];
+  for(let copy = 0; copy < copies; copy++){
+    for(const card of CARD_POOL){
+      expanded.push({ ...card, id:copies === 1 ? card.id : `${card.id}_c${copy + 1}` });
+    }
+  }
+  return shuffle(expanded);
+}
+function getOpponentIds(game, playerId){ return game.playerOrder.filter(id => id !== playerId); }
+function getOpponentId(game, playerId){ return getOpponentIds(game, playerId)[0]; }
+function getCircularNeighborIds(game, playerId){
+  const order = game.playerOrder;
+  const index = order.indexOf(playerId);
+  if(index === -1) return { leftId:null, rightId:null };
+  if(order.length === 2){
+    const opponentId = getOpponentId(game, playerId);
+    return { leftId:opponentId, rightId:opponentId };
+  }
+  return {
+    leftId:order[(index + 1) % order.length],
+    rightId:order[(index - 1 + order.length) % order.length],
+  };
+}
+function getSelectorIds(game, key){
+  const plural = game[`${key}SelectorIds`];
+  if(Array.isArray(plural)) return plural;
+  const single = game[`${key}SelectorId`];
+  return single ? [single] : [];
+}
+function relationLabel(relation){
+  if(relation === 'left') return 'LEFT';
+  if(relation === 'right') return 'RIGHT';
+  return 'OPP';
+}
+function viewOpponents(view){
+  return Array.isArray(view?.opponents) && view.opponents.length ? view.opponents : (view?.opponent ? [view.opponent] : []);
+}
+function viewPlayers(view){ return [view.you, ...viewOpponents(view)].filter(Boolean); }
+function nicknameFor(view, id){
+  return (viewPlayers(view).find(player => player.id === id)?.nickname) || '플레이어';
+}
+function fieldPlayerRows(row, view){
+  if(Array.isArray(row.playerBreakdown)) return row.playerBreakdown;
+  const firstId = (view.result?.order || [])[0];
+  const secondId = (view.result?.order || [])[1];
+  return [
+    { id:firstId, nickname:nicknameFor(view, firstId), total:row.firstPlayerTotal || 0, score:row.firstScore || 0, used:row.firstUsed },
+    { id:secondId, nickname:nicknameFor(view, secondId), total:row.secondPlayerTotal || 0, score:row.secondScore || 0, used:row.secondUsed },
+  ].filter(entry => entry.id);
+}
+function controllerText(row, view){
+  const controllers = Array.isArray(row.controllers) ? row.controllers : (row.control && row.control !== 'tie' ? [row.control] : []);
+  if(!controllers.length) return '무승부';
+  if(controllers.length > 1) return `공동 점령: ${controllers.map(id => nicknameFor(view, id)).join(', ')}`;
+  return `${nicknameFor(view, controllers[0])} 점령`;
+}
+
 function createPlayerState(roomPlayer, deckCards){
   return {
     id:roomPlayer.id,
@@ -600,32 +687,30 @@ function drawCards(player, count){
 function calculateFieldTotals(board, fieldKey){
   return board[fieldKey].filter(card => !card.deleted).reduce((sum, card) => sum + card.power, 0);
 }
-function getOpponentId(game, playerId){ return game.playerOrder.find(id => id !== playerId); }
-
-function createGameFromPlayers(playerA, playerB){
-  const master = shuffle(CARD_POOL);
-  const deckA = shuffle(master.slice(0, 18));
-  const deckB = shuffle(master.slice(18, 36));
+function createGameFromPlayers(...roomPlayers){
+  if(Array.isArray(roomPlayers[0])) roomPlayers = roomPlayers[0];
+  roomPlayers = roomPlayers.slice(0, normalizeMaxPlayers(roomPlayers.length));
+  const master = createDealingDeck(roomPlayers.length);
+  const decks = roomPlayers.map((_, index) => shuffle(master.slice(index * 18, (index + 1) * 18)));
   const game = {
     round:0,
     phase:'setup',
     status:'playing',
-    playerOrder:[playerA.id, playerB.id],
-    players:{
-      [playerA.id]:createPlayerState(playerA, deckA),
-      [playerB.id]:createPlayerState(playerB, deckB),
-    },
-    playQuota:{ [playerA.id]:1, [playerB.id]:1 },
-    scanActive:{ [playerA.id]:false, [playerB.id]:false },
+    maxPlayers:roomPlayers.length,
+    playerOrder:roomPlayers.map(player => player.id),
+    players:Object.fromEntries(roomPlayers.map((player, index) => [player.id, createPlayerState(player, decks[index])])),
+    playQuota:Object.fromEntries(roomPlayers.map(player => [player.id, 1])),
+    scanActive:Object.fromEntries(roomPlayers.map(player => [player.id, false])),
     firstSelectorId:null,
     secondSelectorId:null,
+    firstSelectorIds:[],
+    secondSelectorIds:[],
     lastReveal:null,
     lastTransfer:null,
     lastDraw:null,
     result:null,
   };
-  drawCards(game.players[playerA.id], 2);
-  drawCards(game.players[playerB.id], 2);
+  for(const playerId of game.playerOrder) drawCards(game.players[playerId], 2);
   startNextRound(game);
   return game;
 }
@@ -634,6 +719,8 @@ function startNextRound(game){
   game.lastTransfer = null;
   game.firstSelectorId = null;
   game.secondSelectorId = null;
+  game.firstSelectorIds = [];
+  game.secondSelectorIds = [];
   if(game.round >= 8){ finalizeGame(game); return; }
   game.round += 1;
   game.phase = 'transfer';
@@ -655,39 +742,52 @@ function enterPlayPhase(game){
     player.flags.scanNext = false;
     player.pendingPlay = [];
   }
-  const [firstPlayerId, secondPlayerId] = game.playerOrder;
-  const firstScan = game.scanActive[firstPlayerId];
-  const secondScan = game.scanActive[secondPlayerId];
-  if(firstScan && !secondScan){
+  const scanPlayers = game.playerOrder.filter(playerId => game.scanActive[playerId]);
+  const normalPlayers = game.playerOrder.filter(playerId => !game.scanActive[playerId]);
+  if(scanPlayers.length > 0 && normalPlayers.length > 0){
     game.phase = 'play_sequential_first';
-    game.firstSelectorId = secondPlayerId;
-    game.secondSelectorId = firstPlayerId;
-  }else if(!firstScan && secondScan){
-    game.phase = 'play_sequential_first';
-    game.firstSelectorId = firstPlayerId;
-    game.secondSelectorId = secondPlayerId;
+    game.firstSelectorIds = normalPlayers;
+    game.secondSelectorIds = scanPlayers;
+    game.firstSelectorId = normalPlayers[0] || null;
+    game.secondSelectorId = scanPlayers[0] || null;
   }else{
     game.phase = 'play_simultaneous';
+    game.firstSelectorIds = [];
+    game.secondSelectorIds = [];
+    game.firstSelectorId = null;
+    game.secondSelectorId = null;
   }
 }
 function processTransfers(game){
-  const [firstId, secondId] = game.playerOrder;
-  const firstPlayer = game.players[firstId];
-  const secondPlayer = game.players[secondId];
-  const firstSent = firstPlayer.pendingTransfer.map(card => ({ ...card }));
-  const secondSent = secondPlayer.pendingTransfer.map(card => ({ ...card }));
-  secondPlayer.hand.push(...firstPlayer.pendingTransfer);
-  firstPlayer.hand.push(...secondPlayer.pendingTransfer);
-  game.lastTransfer = {
-    byPlayer:{
-      [firstId]:firstSent,
-      [secondId]:secondSent,
+  const sentByPlayer = {};
+  const receivedByPlayer = Object.fromEntries(game.playerOrder.map(id => [id, []]));
+  for(const playerId of game.playerOrder){
+    const player = game.players[playerId];
+    const sentCards = player.pendingTransfer.map(card => ({ ...card }));
+    sentByPlayer[playerId] = sentCards;
+    if(game.playerOrder.length === 2){
+      const opponentId = getOpponentId(game, playerId);
+      game.players[opponentId].hand.push(...player.pendingTransfer);
+      receivedByPlayer[opponentId].push(...sentCards);
+    }else{
+      const { leftId, rightId } = getCircularNeighborIds(game, playerId);
+      const [leftCard, rightCard] = player.pendingTransfer;
+      if(leftId && leftCard){
+        game.players[leftId].hand.push(leftCard);
+        receivedByPlayer[leftId].push({ ...leftCard, fromPlayerId:playerId, direction:'left' });
+      }
+      if(rightId && rightCard){
+        game.players[rightId].hand.push(rightCard);
+        receivedByPlayer[rightId].push({ ...rightCard, fromPlayerId:playerId, direction:'right' });
+      }
     }
-  };
-  firstPlayer.pendingTransfer = [];
-  secondPlayer.pendingTransfer = [];
-  firstPlayer.hand.sort(sortCards);
-  secondPlayer.hand.sort(sortCards);
+  }
+  game.lastTransfer = { byPlayer:sentByPlayer, receivedByPlayer };
+  for(const playerId of game.playerOrder){
+    const player = game.players[playerId];
+    player.pendingTransfer = [];
+    player.hand.sort(sortCards);
+  }
   enterPlayPhase(game);
 }
 function resolveRound(game){
@@ -719,50 +819,53 @@ function resolveRound(game){
   else game.phase = 'round_summary';
 }
 function finalizeGame(game){
-  const [firstId, secondId] = game.playerOrder;
-  const firstPlayer = game.players[firstId];
-  const secondPlayer = game.players[secondId];
-  const totals = { [firstId]:0, [secondId]:0 };
+  const totals = Object.fromEntries(game.playerOrder.map(id => [id, 0]));
   const fieldBreakdown = [];
   for(const field of FIELD_CONFIG){
-    const firstTotal = calculateFieldTotals(firstPlayer.board, field.key);
-    const secondTotal = calculateFieldTotals(secondPlayer.board, field.key);
-    const firstRemaining = firstPlayer.hand.filter(card => card.fieldKey === field.key);
-    const secondRemaining = secondPlayer.hand.filter(card => card.fieldKey === field.key);
-    let firstScore = 0;
-    let secondScore = 0;
-    let control = 'tie';
-    if(firstTotal > secondTotal) control = firstId;
-    else if(secondTotal > firstTotal) control = secondId;
-    if(firstPlayer.usedField[field.key]){
-      firstScore = control === firstId
-        ? firstRemaining.reduce((sum, card) => sum + card.power, 0)
-        : (firstRemaining.length ? Math.min(...firstRemaining.map(card => card.power)) : 0);
-    }
-    if(secondPlayer.usedField[field.key]){
-      secondScore = control === secondId
-        ? secondRemaining.reduce((sum, card) => sum + card.power, 0)
-        : (secondRemaining.length ? Math.min(...secondRemaining.map(card => card.power)) : 0);
-    }
-    totals[firstId] += firstScore;
-    totals[secondId] += secondScore;
+    const playerRows = game.playerOrder.map(playerId => {
+      const player = game.players[playerId];
+      return {
+        id:playerId,
+        nickname:player.nickname,
+        total:calculateFieldTotals(player.board, field.key),
+        remaining:player.hand.filter(card => card.fieldKey === field.key),
+        used:player.usedField[field.key],
+      };
+    });
+    const highestTotal = Math.max(...playerRows.map(row => row.total));
+    const controllers = highestTotal > 0 ? playerRows.filter(row => row.total === highestTotal).map(row => row.id) : [];
+    const playerBreakdown = playerRows.map(row => {
+      let score = 0;
+      if(row.used){
+        score = controllers.includes(row.id)
+          ? row.remaining.reduce((sum, card) => sum + card.power, 0)
+          : (row.remaining.length ? Math.min(...row.remaining.map(card => card.power)) : 0);
+      }
+      totals[row.id] += score;
+      return { id:row.id, nickname:row.nickname, total:row.total, score, used:row.used };
+    });
+    const first = playerBreakdown[0] || { total:0, score:0, used:false };
+    const second = playerBreakdown[1] || { total:0, score:0, used:false };
     fieldBreakdown.push({
       fieldKey:field.key,
       fieldName:field.name,
-      firstPlayerTotal:firstTotal,
-      secondPlayerTotal:secondTotal,
-      firstScore, secondScore,
-      control,
-      firstUsed:firstPlayer.usedField[field.key],
-      secondUsed:secondPlayer.usedField[field.key]
+      control:controllers.length === 1 ? controllers[0] : 'tie',
+      controllers,
+      playerBreakdown,
+      firstPlayerTotal:first.total,
+      secondPlayerTotal:second.total,
+      firstScore:first.score,
+      secondScore:second.score,
+      firstUsed:first.used,
+      secondUsed:second.used,
     });
   }
-  let winner = 'draw';
-  if(totals[firstId] > totals[secondId]) winner = firstId;
-  if(totals[secondId] > totals[firstId]) winner = secondId;
+  const highestScore = Math.max(...Object.values(totals));
+  const winners = game.playerOrder.filter(id => totals[id] === highestScore);
+  const winner = winners.length === 1 ? winners[0] : 'draw';
   game.phase = 'finished';
   game.status = 'finished';
-  game.result = { totals, winner, fieldBreakdown, order:[...game.playerOrder] };
+  game.result = { totals, winner, winners, fieldBreakdown, order:[...game.playerOrder] };
 }
 function submitTransfer(game, playerId, cardIds){
   if(game.phase !== 'transfer') return { ok:false, message:'지금은 카드 전송 단계가 아닙니다.' };
@@ -783,8 +886,8 @@ function submitPlay(game, playerId, cardIds){
   const requiredCount = game.playQuota[playerId];
   if(!Array.isArray(cardIds) || cardIds.length !== requiredCount || new Set(cardIds).size !== requiredCount) return { ok:false, message:`출격 카드는 정확히 ${requiredCount}장이어야 합니다.` };
   if(player.pendingPlay.length) return { ok:false, message:'이미 출격 카드를 제출했습니다.' };
-  if(game.phase === 'play_sequential_first' && game.firstSelectorId !== playerId) return { ok:false, message:'상대가 먼저 선택해야 합니다.' };
-  if(game.phase === 'play_sequential_second' && game.secondSelectorId !== playerId) return { ok:false, message:'지금은 상대가 선택 중입니다.' };
+  if(game.phase === 'play_sequential_first' && !getSelectorIds(game, 'first').includes(playerId)) return { ok:false, message:'디지스캔 대응 플레이어가 아닙니다.' };
+  if(game.phase === 'play_sequential_second' && !getSelectorIds(game, 'second').includes(playerId)) return { ok:false, message:'지금은 디지스캔 플레이어가 선택 중입니다.' };
   const removed = removeCardsById(player.hand, cardIds);
   if(!removed) return { ok:false, message:'손패에 없는 카드입니다.' };
   player.pendingPlay = removed;
@@ -794,26 +897,31 @@ function submitPlay(game, playerId, cardIds){
     return { ok:true };
   }
   if(game.phase === 'play_sequential_first'){
-    game.phase = 'play_sequential_second';
+    const firstReady = getSelectorIds(game, 'first').every(id => game.players[id].pendingPlay.length === game.playQuota[id]);
+    if(firstReady) game.phase = 'play_sequential_second';
     return { ok:true };
   }
   if(game.phase === 'play_sequential_second'){
-    resolveRound(game);
+    const secondReady = getSelectorIds(game, 'second').every(id => game.players[id].pendingPlay.length === game.playQuota[id]);
+    if(secondReady) resolveRound(game);
     return { ok:true };
   }
   return { ok:true };
 }
 function getPrompt(game, playerId){
   const player = game.players[playerId];
+  const isThreePlayer = game.playerOrder.length >= 3;
   switch(game.phase){
     case 'transfer':
-      return player.pendingTransfer.length === 2 ? '상대의 카드 전송을 기다리는 중' : '손패에서 2장을 골라 상대에게 보냅니다';
+      return player.pendingTransfer.length === 2
+        ? '다른 플레이어의 카드 전송을 기다리는 중'
+        : (isThreePlayer ? '1번째 선택은 LEFT, 2번째 선택은 RIGHT 상대에게 전송' : '손패에서 2장을 골라 상대에게 보냅니다');
     case 'play_simultaneous':
-      return player.pendingPlay.length === game.playQuota[playerId] ? '상대의 출격을 기다리는 중' : `${game.playQuota[playerId]}장을 선택해 동시에 출격합니다`;
+      return player.pendingPlay.length === game.playQuota[playerId] ? '다른 플레이어의 출격을 기다리는 중' : `${game.playQuota[playerId]}장을 선택해 동시에 출격합니다`;
     case 'play_sequential_first':
-      return game.firstSelectorId === playerId ? `먼저 ${game.playQuota[playerId]}장을 출격하세요` : '상대가 먼저 출격 중입니다';
+      return getSelectorIds(game, 'first').includes(playerId) ? `먼저 ${game.playQuota[playerId]}장을 출격하세요` : '디지스캔 플레이어가 대응하기 전입니다';
     case 'play_sequential_second':
-      return game.secondSelectorId === playerId ? `상대 공개 후 ${game.playQuota[playerId]}장을 대응 출격` : '상대가 디지스캔 효과를 쓰는 중입니다';
+      return getSelectorIds(game, 'second').includes(playerId) ? `공개된 카드 확인 후 ${game.playQuota[playerId]}장을 대응 출격` : '디지스캔 플레이어가 대응 중입니다';
     case 'round_summary':
       return '카드 공개와 효과 처리가 진행 중입니다';
     case 'finished':
@@ -823,9 +931,24 @@ function getPrompt(game, playerId){
   }
 }
 function buildLocalView(game, playerId, roomInfo){
-  const opponentId = getOpponentId(game, playerId);
+  const opponentIds = getOpponentIds(game, playerId);
+  const opponentId = opponentIds[0];
   const me = game.players[playerId];
   const opponent = game.players[opponentId];
+  const opponents = opponentIds.map((id, index) => {
+    const opp = game.players[id];
+    const { leftId, rightId } = getCircularNeighborIds(game, playerId);
+    return {
+      id:opp.id,
+      nickname:opp.nickname,
+      deckCount:opp.deck.length,
+      handCount:opp.hand.length,
+      canPlayCount:game.playQuota[id],
+      scanActive:game.scanActive[id],
+      connected:true,
+      relation:opponentIds.length === 1 ? 'opponent' : (id === leftId ? 'left' : id === rightId ? 'right' : `opponent_${index + 1}`),
+    };
+  });
   let actionType = null, canAct = false, requiredCount = 0, peekCards = [];
   let lockedCards = me.pendingPlay.map(card => ({ ...card }));
   if(game.phase === 'transfer'){
@@ -839,20 +962,49 @@ function buildLocalView(game, playerId, roomInfo){
     requiredCount = game.playQuota[playerId];
   }else if(game.phase === 'play_sequential_first'){
     actionType = 'play';
-    canAct = game.firstSelectorId === playerId && me.pendingPlay.length === 0;
+    canAct = getSelectorIds(game, 'first').includes(playerId) && me.pendingPlay.length === 0;
     requiredCount = game.playQuota[playerId];
   }else if(game.phase === 'play_sequential_second'){
     actionType = 'play';
-    canAct = game.secondSelectorId === playerId && me.pendingPlay.length === 0;
+    canAct = getSelectorIds(game, 'second').includes(playerId) && me.pendingPlay.length === 0;
     requiredCount = game.playQuota[playerId];
-    if(game.firstSelectorId && game.players[game.firstSelectorId].pendingPlay.length){
-      peekCards = game.players[game.firstSelectorId].pendingPlay.map(card => ({ ...card }));
-    }
+    peekCards = getSelectorIds(game, 'first').flatMap(id => game.players[id].pendingPlay.map(card => ({ ...card, ownerId:id })));
   }
+  const fields = FIELD_CONFIG.map(field => {
+    const players = game.playerOrder.map(id => {
+      const player = game.players[id];
+      return {
+        id,
+        nickname:player.nickname,
+        total:calculateFieldTotals(player.board, field.key),
+        playedCount:player.board[field.key].length,
+        used:player.usedField[field.key],
+        cards:player.board[field.key].map(card => ({ ...card })),
+        role:id === playerId ? 'you' : 'opponent',
+      };
+    });
+    const myRow = players.find(row => row.id === playerId);
+    const oppRow = players.find(row => row.id === opponentId) || { total:0, cards:[], used:false, playedCount:0 };
+    return {
+      key:field.key,
+      name:field.name,
+      short:field.short,
+      color:field.color,
+      players,
+      opponents:players.filter(row => row.id !== playerId),
+      myTotal:myRow.total,
+      oppTotal:oppRow.total,
+      myCards:myRow.cards,
+      oppCards:oppRow.cards,
+      myUsed:myRow.used,
+      oppUsed:oppRow.used,
+    };
+  });
   return {
     mode:'ai',
     code:roomInfo.code,
     name:roomInfo.name,
+    maxPlayers:game.playerOrder.length,
     round:game.round,
     phase:game.phase,
     status:game.status,
@@ -867,33 +1019,23 @@ function buildLocalView(game, playerId, roomInfo){
       scanActive:game.scanActive[playerId],
       doubleActive:game.playQuota[playerId] === 2,
     },
-    opponent:{
+    opponent:opponent ? {
       id:opponent.id,
       nickname:opponent.nickname,
       deckCount:opponent.deck.length,
       handCount:opponent.hand.length,
       canPlayCount:game.playQuota[opponentId],
       scanActive:game.scanActive[opponentId],
-      connected:true
-    },
-    fields:FIELD_CONFIG.map(field => ({
-      key:field.key,
-      name:field.name,
-      short:field.short,
-      color:field.color,
-      myTotal:calculateFieldTotals(me.board, field.key),
-      oppTotal:calculateFieldTotals(opponent.board, field.key),
-      myCards:me.board[field.key].map(card => ({ ...card })),
-      oppCards:opponent.board[field.key].map(card => ({ ...card })),
-      myUsed:me.usedField[field.key],
-      oppUsed:opponent.usedField[field.key],
-    })),
+      connected:true,
+    } : null,
+    opponents,
+    fields,
     actionType, canAct, requiredCount, peekCards, lockedCards,
     lastReveal:game.lastReveal,
     lastTransfer:game.lastTransfer,
     lastDraw:game.lastDraw,
     result:game.result,
-    rematch:{ requestedByYou:me.rematchWanted, requestedByOpponent:opponent.rematchWanted }
+    rematch:{ requestedByYou:me.rematchWanted, requestedByOpponent:opponent?.rematchWanted || false }
   };
 }
 
@@ -920,6 +1062,7 @@ const state = {
     roomCodeDraft:'',
     roomNameDraft:'새 디지털 룸',
     createPrivate:false,
+    battlePlayerCount:2,
     previewCardId:null,
     previewCardData:null,
     longPressTimer:null,
@@ -1080,12 +1223,14 @@ function makeResultSig(view){
   const fields = (view.result.fieldBreakdown || []).map(row => ({
     fieldKey:row.fieldKey,
     control:row.control,
+    controllers:row.controllers || [],
+    playerBreakdown:row.playerBreakdown || null,
     firstPlayerTotal:row.firstPlayerTotal,
     secondPlayerTotal:row.secondPlayerTotal,
     firstScore:row.firstScore,
     secondScore:row.secondScore,
   }));
-  return JSON.stringify({ totals:view.result.totals, winner:view.result.winner, fields });
+  return JSON.stringify({ totals:view.result.totals, winner:view.result.winner, winners:view.result.winners || [], fields });
 }
 function clearResultSequence(){
   if(state.meta.resultSequenceTimer) clearTimeout(state.meta.resultSequenceTimer);
@@ -1096,9 +1241,9 @@ function playFinalResultAudio(view){
   const latest = view || currentView();
   if(!latest?.result) return;
   const myScore = Number(latest.result.totals?.[latest.you.id] || 0);
-  const oppScore = Number(latest.result.totals?.[latest.opponent.id] || 0);
-  if(myScore > oppScore) audio.victory();
-  else if(oppScore > myScore) audio.defeat();
+  const bestOpponentScore = Math.max(0, ...viewOpponents(latest).map(opp => Number(latest.result.totals?.[opp.id] || 0)));
+  if(myScore > bestOpponentScore) audio.victory();
+  else if(bestOpponentScore > myScore) audio.defeat();
 }
 function startResultSequence(view, sig){
   clearResultSequence();
@@ -1111,9 +1256,7 @@ function startResultSequence(view, sig){
     index:0,
     rows,
     myId:view.you.id,
-    oppId:view.opponent.id,
-    myName:view.you.nickname,
-    oppName:view.opponent.nickname,
+    players:viewPlayers(view).map(player => ({ id:player.id, nickname:player.nickname })),
     order:[...(view.result.order || [])],
   };
   const finish = () => {
@@ -1183,8 +1326,8 @@ function applyBattleView(view){
       if(state.meta.transferTimer) clearTimeout(state.meta.transferTimer);
       state.ui.transfer = {
         id:transferSig,
-        sent:view.lastTransfer.byPlayer[view.you.id] || [],
-        received:view.lastTransfer.byPlayer[view.opponent.id] || [],
+        sent:view.lastTransfer.byPlayer?.[view.you.id] || [],
+        received:view.lastTransfer.receivedByPlayer?.[view.you.id] || (view.opponent ? (view.lastTransfer.byPlayer?.[view.opponent.id] || []) : []),
       };
       audio.transfer();
       render();
@@ -1203,10 +1346,17 @@ function applyBattleView(view){
     if(sig && sig !== state.meta.revealSig){
       state.meta.revealSig = sig;
       if(state.meta.revealTimer) clearTimeout(state.meta.revealTimer);
+      const opponentReveals = viewOpponents(view).map(opp => ({
+        id:opp.id,
+        nickname:opp.nickname,
+        relation:opp.relation,
+        cards:view.lastReveal.byPlayer?.[opp.id] || [],
+      }));
       state.ui.reveal = {
         id:sig,
-        myCards:view.lastReveal.byPlayer[view.you.id] || [],
-        oppCards:view.lastReveal.byPlayer[view.opponent.id] || [],
+        myCards:view.lastReveal.byPlayer?.[view.you.id] || [],
+        oppCards:opponentReveals.flatMap(entry => entry.cards),
+        opponentReveals,
         crash:view.lastReveal.hadFileCrash,
       };
       audio.reveal();
@@ -1256,7 +1406,8 @@ function ensureSocket(){
     render();
   });
   socket.on('room_list', list => {
-    state.online.roomList = Array.isArray(list) ? list.slice(0,3) : [];
+    const wanted = normalizeMaxPlayers(state.ui.battlePlayerCount);
+    state.online.roomList = Array.isArray(list) ? list.filter(room => !room.maxPlayers || normalizeMaxPlayers(room.maxPlayers) === wanted).slice(0,3) : [];
     render();
   });
   socket.on('room_update', lobby => {
@@ -1300,7 +1451,7 @@ function ensureSocket(){
   socket.on('opponent_disconnected', payload => toast(payload?.message || '상대 연결이 종료되었습니다.'));
   return socket;
 }
-function requestRoomList(){ ensureSocket().emit('request_room_list'); }
+function requestRoomList(){ ensureSocket().emit('request_room_list', { maxPlayers:normalizeMaxPlayers(state.ui.battlePlayerCount) }); }
 
 function startAiBattle(){
   clearTimeout(state.local.timer);
@@ -1614,10 +1765,17 @@ function renderDraw(){
 
 function renderReveal(){
   const reveal = state.ui.reveal;
+  const opponentReveals = Array.isArray(reveal.opponentReveals) && reveal.opponentReveals.length
+    ? reveal.opponentReveals
+    : [{ nickname:'상대', relation:'opponent', cards:reveal.oppCards || [] }];
   return `
     <div class="reveal-overlay">
       <div class="reveal-shell">
-        <div class="reveal-stack">${(reveal.oppCards || []).map(card => `<div class="reveal-card">${renderCardHtml(card)}</div>`).join('')}</div>
+        <div class="reveal-stack">${opponentReveals.map(entry => `
+          <div style="display:grid;gap:4px;justify-items:center">
+            <div class="tiny-pill">${escapeHtml(relationLabel(entry.relation))}</div>
+            <div class="reveal-stack">${(entry.cards || []).map(card => `<div class="reveal-card">${renderCardHtml(card)}</div>`).join('')}</div>
+          </div>`).join('')}</div>
         <div class="vs-burst">${reveal.crash ? 'CRASH' : 'OPEN'}</div>
         <div class="reveal-stack">${(reveal.myCards || []).map(card => `<div class="reveal-card">${renderCardHtml(card)}</div>`).join('')}</div>
       </div>
@@ -1646,95 +1804,31 @@ function renderBanner(){
     </div>
   `;
 }
-function renderBattleMenu(){
+function renderOpponentHeader(opp, compact=false){
   return `
-    <div class="battle-menu">
-      <button class="soft-button secondary" data-action="toggle-music"><span>${state.settings.musicOn ? 'BGM 켜짐' : 'BGM 꺼짐'}</span></button>
-      <button class="soft-button secondary" data-action="toggle-sfx"><span>${state.settings.sfxOn ? '효과음 켜짐' : '효과음 꺼짐'}</span></button>
-      <button class="soft-button secondary" data-action="${state.local.game ? 'leave-battle' : 'leave-room'}"><span>${state.local.game ? '메뉴로 돌아가기' : '방 나가기'}</span></button>
-    </div>
-  `;
+    <div class="enemy-stack ${compact ? 'compact' : ''}">
+      <div class="avatar">${escapeHtml((opp.nickname || 'AI').slice(0,2))}</div>
+      <div class="player-mini">
+        ${compact ? `<div class="opp-relation">${escapeHtml(relationLabel(opp.relation))}</div>` : ''}
+        <div class="name">${escapeHtml(opp.nickname)}</div>
+        <div class="meta">Deck ${opp.deckCount} · Hand ${opp.handCount}</div>
+      </div>
+    </div>`;
 }
-function renderResultSequence(view){
-  const seq = state.ui.resultSequence;
-  if(!seq || seq.pending || !seq.rows?.length) return '';
-  const index = Math.max(0, Math.min(seq.index || 0, seq.rows.length - 1));
-  const row = seq.rows[index];
-  const field = fieldFor(row.fieldKey);
-  const firstId = seq.order[0];
-  const meFirst = firstId === seq.myId;
-  const myTotal = meFirst ? row.firstPlayerTotal : row.secondPlayerTotal;
-  const oppTotal = meFirst ? row.secondPlayerTotal : row.firstPlayerTotal;
-  const myFieldScore = meFirst ? row.firstScore : row.secondScore;
-  const oppFieldScore = meFirst ? row.secondScore : row.firstScore;
-  const ownerClass = row.control === 'tie' ? 'tie' : (row.control === seq.myId ? 'mine' : 'opponent');
-  const ownerText = row.control === 'tie' ? '무승부' : (row.control === seq.myId ? `${seq.myName} 점령` : `${seq.oppName} 점령`);
-  const dots = seq.rows.map((_row, dotIndex) => `<span class="claim-dot ${dotIndex === index ? 'active' : ''}"></span>`).join('');
+function renderOpponentFieldStack(entry, index){
   return `
-    <div class="claim-overlay">
-      <div class="claim-shell">
-        <div class="claim-stage">
-          <div class="claim-field-card" style="--claim-bg:url('${field.bg}')">
-            <div class="claim-index">TERRITORY ${index + 1} / ${seq.rows.length}</div>
-            <div class="claim-field-name">${escapeHtml(row.fieldName || field.name)}</div>
-            <div class="claim-owner ${ownerClass}">${escapeHtml(ownerText)}</div>
-          </div>
-          <div class="claim-score-line">
-            <div class="claim-score-box"><span>${escapeHtml(seq.myName)}</span><strong>${myTotal}</strong><small>필드 합 · 점수 ${myFieldScore}</small></div>
-            <div class="pill">CONTROL</div>
-            <div class="claim-score-box"><span>${escapeHtml(seq.oppName)}</span><strong>${oppTotal}</strong><small>필드 합 · 점수 ${oppFieldScore}</small></div>
-          </div>
-          <div class="claim-progress">${dots}</div>
-        </div>
+    <div class="opponent-field-cell">
+      <div class="opponent-field-label">${index + 1}</div>
+      <div class="stack">
+        <div class="stack-total">${entry.total}</div>
+        <div class="stack-cards">${renderMiniStack(entry.cards)}</div>
       </div>
-    </div>
-  `;
-}
-function renderResult(view){
-  const result = view.result;
-  const myScore = Number(result.totals[view.you.id] || 0);
-  const oppScore = Number(result.totals[view.opponent.id] || 0);
-  const title = myScore === oppScore ? '무승부' : (myScore > oppScore ? '승리' : '패배');
-  const firstId = result.order[0];
-  return `
-    <div class="result-sheet">
-      <div class="result-title">${title}</div>
-      <div class="result-score">
-        <div class="score-pill"><div style="font-size:11px;font-weight:1000;color:#5d748d">${escapeHtml(view.you.nickname)}</div><strong>${myScore}</strong></div>
-        <div class="pill">TOTAL SCORE</div>
-        <div class="score-pill"><div style="font-size:11px;font-weight:1000;color:#5d748d">${escapeHtml(view.opponent.nickname)}</div><strong>${oppScore}</strong></div>
-      </div>
-      <div class="breakdown">
-        ${result.fieldBreakdown.map(row => {
-          const meFirst = firstId === view.you.id;
-          const myTotal = meFirst ? row.firstPlayerTotal : row.secondPlayerTotal;
-          const oppTotal = meFirst ? row.secondPlayerTotal : row.firstPlayerTotal;
-          const myFieldScore = meFirst ? row.firstScore : row.secondScore;
-          const oppFieldScore = meFirst ? row.secondScore : row.firstScore;
-          return `
-            <div class="break-row">
-              <div style="text-align:left">
-                <div>${escapeHtml(row.fieldName)}</div>
-                <div style="font-size:10px;color:#6a8198">필드 합 ${myTotal} / ${oppTotal}</div>
-              </div>
-              <div class="tiny-pill">${row.control === 'tie' ? '무' : (row.control === view.you.id ? '장악' : '상대')}</div>
-              <div style="text-align:right">
-                <div>${myFieldScore} · ${oppFieldScore}</div>
-                <div style="font-size:10px;color:#6a8198">점수</div>
-              </div>
-            </div>`;
-        }).join('')}
-      </div>
-      <div class="action-grid">
-        <button class="soft-button primary" data-action="request-rematch"><span>다시 하기</span></button>
-        <button class="soft-button secondary" data-action="${state.local.game ? 'leave-battle' : 'leave-room'}"><span>나가기</span></button>
-      </div>
-    </div>
-  `;
+    </div>`;
 }
 function renderBattle(){
   const view = currentView();
   if(!view) return '';
+  const opponents = viewOpponents(view);
   const hand = view.you.hand || [];
   const total = Math.max(hand.length, 1);
   const middle = (total - 1) / 2;
@@ -1760,26 +1854,23 @@ function renderBattle(){
     <div class="screen battle-screen">
       <div class="battle-shell">
         <div class="battle-top">
-          <div class="enemy-stack">
-            <div class="avatar">${escapeHtml((view.opponent.nickname || 'AI').slice(0,2))}</div>
-            <div class="player-mini">
-              <div class="name">${escapeHtml(view.opponent.nickname)}</div>
-              <div class="meta">Deck ${view.opponent.deckCount} · Hand ${view.opponent.handCount}</div>
-            </div>
-          </div>
+          ${opponents.length > 1
+            ? `<div class="opponent-row">${opponents.map(opp => renderOpponentHeader(opp, true)).join('')}</div>`
+            : renderOpponentHeader(opponents[0] || { nickname:'AI', deckCount:0, handCount:0 })}
           <div class="round-text">ROUND ${view.round}</div>
           <button class="icon-button battle-menu-button" data-action="toggle-battle-menu" aria-label="메뉴">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M5 7H19" stroke="#24405d" stroke-width="2.4" stroke-linecap="round"/><path d="M5 12H19" stroke="#24405d" stroke-width="2.4" stroke-linecap="round"/><path d="M5 17H19" stroke="#24405d" stroke-width="2.4" stroke-linecap="round"/></svg>
           </button>
         </div>
         <div class="board">
-          ${view.fields.map(field => `
+          ${view.fields.map(field => {
+            const oppRows = Array.isArray(field.opponents) && field.opponents.length ? field.opponents : [{ total:field.oppTotal, cards:field.oppCards }];
+            return `
             <div class="lane" style="--lane-bg:url('${fieldFor(field.key).bg}')">
-              <div class="lane-top">
-                <div class="stack">
-                  <div class="stack-total">${field.oppTotal}</div>
-                  <div class="stack-cards">${renderMiniStack(field.oppCards)}</div>
-                </div>
+              <div class="lane-top ${oppRows.length > 1 ? 'multi' : ''}">
+                ${oppRows.length > 1
+                  ? `<div class="opponent-field-grid">${oppRows.map((entry, index) => renderOpponentFieldStack(entry, index)).join('')}</div>`
+                  : `<div class="stack"><div class="stack-total">${field.oppTotal}</div><div class="stack-cards">${renderMiniStack(field.oppCards)}</div></div>`}
               </div>
               <div class="lane-center"><div class="lane-chip">${escapeHtml(field.short)}</div></div>
               <div class="lane-bottom">
@@ -1788,7 +1879,8 @@ function renderBattle(){
                   <div class="stack-cards">${renderMiniStack(field.myCards)}</div>
                 </div>
               </div>
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
         </div>
         <div class="hand-zone">
           <div class="hand-wrap">
@@ -1819,25 +1911,27 @@ function renderMenu(){
     <div class="screen menu-screen">
       <div class="menu-top">
         <div class="logo-wrap"><img src="${ASSETS.logo}" alt="디지몬 어드벤처"></div>
-        <div class="menu-copy">모바일 카드게임 스타일의 2인 디지털 배틀. 손패 팬 연출, 라운드 배너, 메인과 전투의 다른 BGM을 포함합니다.</div>
+        <div class="menu-copy">모바일 카드게임 스타일의 2~3인 디지털 배틀. 3인용은 좌우 상대에게 한 장씩 보내는 자니펭귄식 전송 규칙을 사용합니다.</div>
         <div class="menu-buttons">
           <button class="soft-button primary" data-action="start-ai"><span>시뮬레이션 배틀</span></button>
-          <button class="soft-button primary" data-action="open-browser"><span>월드 와이드 배틀</span></button>
+          <button class="soft-button primary" data-action="open-browser" data-players="2"><span>월드 와이드 배틀 2인용</span></button>
+          <button class="soft-button primary" data-action="open-browser" data-players="3"><span>월드 와이드 배틀 3인용</span></button>
           <button class="soft-button secondary" data-action="open-settings"><span>환경설정</span></button>
         </div>
       </div>
-      <div class="footer-row"><span>v2.0</span><span>${escapeHtml(state.settings.nickname)}</span></div>
+      <div class="footer-row"><span>v2.1</span><span>${escapeHtml(state.settings.nickname)}</span></div>
     </div>
   `;
 }
 function renderBrowser(){
   const rooms = state.online.roomList || [];
+  const modePlayers = normalizeMaxPlayers(state.ui.battlePlayerCount);
   return `
     <div class="screen browser-screen">
       <div class="topbar">
         <div class="title-stack">
-          <div class="title-main">월드 와이드 배틀</div>
-          <div class="title-sub">실시간 2인 멀티플레이</div>
+          <div class="title-main">월드 와이드 배틀 ${modePlayers}인용</div>
+          <div class="title-sub">실시간 ${modePlayers}인 멀티플레이</div>
         </div>
         <button class="icon-button" data-action="back-menu">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M14.5 6L8.5 12L14.5 18" stroke="#24405d" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1850,7 +1944,7 @@ function renderBrowser(){
         </div>
         <div class="input-shell"><input value="${escapeHtml(state.settings.nickname)}" data-input="nickname" maxlength="16" placeholder="닉네임"></div>
         <div class="action-grid">
-          <button class="soft-button primary" data-action="open-create"><span>방 생성</span></button>
+          <button class="soft-button primary" data-action="open-create"><span>${modePlayers}인 방 생성</span></button>
           <button class="soft-button secondary" data-action="open-join"><span>코드 참가</span></button>
         </div>
       </div>
@@ -1858,7 +1952,7 @@ function renderBrowser(){
         <div class="topbar" style="align-items:center">
           <div class="title-stack">
             <div style="font-size:18px;font-weight:1000">공개방 목록</div>
-            <div class="title-sub">대기 중인 방만 표시</div>
+            <div class="title-sub">${modePlayers}인 대기방만 표시</div>
           </div>
           <button class="icon-button" data-action="refresh-rooms">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M20 11A8 8 0 1 1 17.66 5.34" stroke="#24405d" stroke-width="2.1" stroke-linecap="round"/><path d="M20 4V10H14" stroke="#24405d" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -1867,14 +1961,16 @@ function renderBrowser(){
         <div class="room-list">
           ${Array.from({ length:3 }).map((_, index) => {
             const room = rooms[index];
-            if(!room) return `<div class="room-card empty">현재 대기 중인 공개방이 없습니다</div>`;
+            if(!room) return `<div class="room-card empty">현재 대기 중인 ${modePlayers}인 공개방이 없습니다</div>`;
+            const maxPlayers = normalizeMaxPlayers(room.maxPlayers || modePlayers);
             return `
               <button class="room-card ${state.ui.roomCodeDraft === room.code ? 'selected' : ''}" data-action="pick-room" data-room-code="${room.code}">
                 <div style="min-width:0;display:grid;gap:5px">
                   <div class="room-name">${escapeHtml(room.name)}</div>
                   <div class="room-code">CODE ${escapeHtml(room.code)}</div>
                   <div style="display:flex;gap:6px;flex-wrap:wrap">
-                    <span class="tiny-pill">${room.playerCount}/2</span>
+                    <span class="tiny-pill">${room.playerCount}/${maxPlayers}</span>
+                    <span class="tiny-pill">${maxPlayers}인용</span>
                     <span class="tiny-pill">${room.isPrivate ? '비공개' : '공개'}</span>
                   </div>
                 </div>
@@ -1895,20 +1991,21 @@ function renderLobby(){
   const lobby = state.online.lobby;
   if(!lobby) return '';
   const players = lobby.players || [];
+  const maxPlayers = normalizeMaxPlayers(lobby.maxPlayers || state.ui.battlePlayerCount);
   const me = players.find(p => p.id === lobby.me);
-  const slots = [players[0], players[1]];
+  const slots = Array.from({ length:maxPlayers }, (_, index) => players[index]);
   return `
     <div class="screen lobby-screen">
       <div class="topbar">
         <div class="title-stack">
           <div class="title-main">${escapeHtml(lobby.name)}</div>
-          <div class="title-sub">ROOM ${escapeHtml(lobby.code)} · ${lobby.isPrivate ? '비공개방' : '공개방'}</div>
+          <div class="title-sub">ROOM ${escapeHtml(lobby.code)} · ${maxPlayers}인용 · ${lobby.isPrivate ? '비공개방' : '공개방'}</div>
         </div>
         <button class="icon-button" data-action="leave-room">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 6L15 12L9 18" stroke="#24405d" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12H4" stroke="#24405d" stroke-width="2.3" stroke-linecap="round"/><path d="M12 4H19C20.1 4 21 4.9 21 6V18C21 19.1 20.1 20 19 20H12" stroke="#24405d" stroke-width="2.0" stroke-linecap="round"/></svg>
         </button>
       </div>
-      <div class="lobby-slots">
+      <div class="lobby-slots" style="grid-template-columns:${maxPlayers === 3 ? '1fr 1fr 1fr' : '1fr 1fr'}">
         ${slots.map((player, idx) => player ? `
           <div class="slot">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
@@ -1932,7 +2029,7 @@ function renderLobby(){
           <div style="font-size:18px;font-weight:1000">배틀 준비</div>
           <div class="net-pill ${escapeHtml(state.connection.status)}"><span class="net-dot"></span><span>${state.connection.status === 'online' ? 'Online' : state.connection.status === 'connecting' ? 'Connecting' : 'Offline'}</span></div>
         </div>
-        <div style="font-size:13px;line-height:1.5;color:#64798f">두 플레이어가 모두 준비를 누른 뒤, 방장이 시작을 누르면 즉시 배틀 화면으로 전환됩니다.</div>
+        <div style="font-size:13px;line-height:1.5;color:#64798f">${maxPlayers}명이 모두 입장하고 준비를 누른 뒤, 방장이 시작을 누르면 즉시 배틀 화면으로 전환됩니다.</div>
         <div style="margin-top:auto" class="action-grid">
           <button class="soft-button primary" data-action="toggle-ready"><span>${me?.ready ? '준비 취소' : '준비'}</span></button>
           <button class="soft-button secondary" data-action="start-online"><span>게임 시작</span></button>
@@ -1981,14 +2078,15 @@ function renderSettings(){
   `;
 }
 function renderModal(){
+  const modePlayers = normalizeMaxPlayers(state.ui.battlePlayerCount);
   if(state.ui.modal === 'create'){
     return `
       <div class="modal-backdrop" data-action="close-modal">
         <div class="modal-card" data-modal-card>
           <div class="topbar">
             <div class="title-stack">
-              <div class="title-main" style="font-size:22px">방 생성</div>
-              <div class="title-sub">공개방 또는 비공개방</div>
+              <div class="title-main" style="font-size:22px">${modePlayers}인용 방 생성</div>
+              <div class="title-sub">${modePlayers}명이 모이면 시작할 수 있습니다</div>
             </div>
             <button class="icon-button" data-action="close-modal">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18" stroke="#24405d" stroke-width="2.3" stroke-linecap="round"/><path d="M18 6L6 18" stroke="#24405d" stroke-width="2.3" stroke-linecap="round"/></svg>
@@ -2016,8 +2114,8 @@ function renderModal(){
         <div class="modal-card" data-modal-card>
           <div class="topbar">
             <div class="title-stack">
-              <div class="title-main" style="font-size:22px">코드 참가</div>
-              <div class="title-sub">방 코드 입력</div>
+              <div class="title-main" style="font-size:22px">${modePlayers}인용 코드 참가</div>
+              <div class="title-sub">같은 인원 모드의 방 코드 입력</div>
             </div>
             <button class="icon-button" data-action="close-modal">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6L18 18" stroke="#24405d" stroke-width="2.3" stroke-linecap="round"/><path d="M18 6L6 18" stroke="#24405d" stroke-width="2.3" stroke-linecap="round"/></svg>
@@ -2066,6 +2164,9 @@ document.addEventListener('click', event => {
       startAiBattle();
       return;
     case 'open-browser':
+      state.ui.battlePlayerCount = normalizeMaxPlayers(el.dataset.players || state.ui.battlePlayerCount || 2);
+      state.ui.roomCodeDraft = '';
+      state.online.rooms = [];
       state.screen = 'browser';
       requestRoomList();
       render();
@@ -2079,7 +2180,7 @@ document.addEventListener('click', event => {
       return;
     case 'open-create':
       state.ui.modal = 'create';
-      state.ui.roomNameDraft = '새 디지털 룸';
+      state.ui.roomNameDraft = `${normalizeMaxPlayers(state.ui.battlePlayerCount)}인 디지털 룸`;
       state.ui.createPrivate = false;
       render();
       return;
@@ -2099,8 +2200,9 @@ document.addEventListener('click', event => {
     case 'confirm-create':
       ensureSocket().emit('create_room', {
         nickname:state.settings.nickname.trim() || '테이머',
-        roomName:state.ui.roomNameDraft.trim() || '새 디지털 룸',
+        roomName:state.ui.roomNameDraft.trim() || `${normalizeMaxPlayers(state.ui.battlePlayerCount)}인 디지털 룸`,
         isPrivate:!!state.ui.createPrivate,
+        maxPlayers:normalizeMaxPlayers(state.ui.battlePlayerCount),
       });
       state.ui.modal = null;
       state.connection.lastMessage = '방 생성 요청 중';
@@ -2138,7 +2240,11 @@ document.addEventListener('click', event => {
       ensureSocket().emit('toggle_ready');
       return;
     case 'start-online':
-      if(!state.online.lobby?.canStart){ toast('두 플레이어가 모두 준비해야 합니다.'); return; }
+      if(!state.online.lobby?.canStart){
+        const maxPlayers = normalizeMaxPlayers(state.online.lobby?.maxPlayers || state.ui.battlePlayerCount);
+        toast(`${maxPlayers}명이 모두 준비해야 합니다.`);
+        return;
+      }
       ensureSocket().emit('start_game');
       audio.confirm();
       audio.setScene('battle');

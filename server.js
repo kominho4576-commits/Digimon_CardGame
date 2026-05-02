@@ -63,6 +63,23 @@ function createCardPool() {
 }
 const CARD_POOL = createCardPool();
 
+function normalizeMaxPlayers(value) {
+  const parsed = Number(value);
+  return parsed === 3 ? 3 : 2;
+}
+
+function createDealingDeck(playerCount) {
+  const required = normalizeMaxPlayers(playerCount) * 18;
+  const copies = Math.max(1, Math.ceil(required / CARD_POOL.length));
+  const expanded = [];
+  for (let copy = 0; copy < copies; copy += 1) {
+    for (const card of CARD_POOL) {
+      expanded.push({ ...card, id: copies === 1 ? card.id : `${card.id}_c${copy + 1}` });
+    }
+  }
+  return shuffle(expanded);
+}
+
 function shuffle(source) {
   const arr = source.map((item) => ({ ...item }));
   for (let i = arr.length - 1; i > 0; i -= 1) {
@@ -117,8 +134,33 @@ function removeCardsById(cards, ids) {
   return selected;
 }
 
+function getOpponentIds(game, playerId) {
+  return game.playerOrder.filter((id) => id !== playerId);
+}
+
 function getOpponentId(game, playerId) {
-  return game.playerOrder.find((id) => id !== playerId);
+  return getOpponentIds(game, playerId)[0];
+}
+
+function getCircularNeighborIds(game, playerId) {
+  const order = game.playerOrder;
+  const index = order.indexOf(playerId);
+  if (index === -1) return { leftId: null, rightId: null };
+  if (order.length === 2) {
+    const opponentId = getOpponentId(game, playerId);
+    return { leftId: opponentId, rightId: opponentId };
+  }
+  return {
+    leftId: order[(index + 1) % order.length],
+    rightId: order[(index - 1 + order.length) % order.length],
+  };
+}
+
+function getSelectorIds(game, key) {
+  const plural = game[`${key}SelectorIds`];
+  if (Array.isArray(plural)) return plural;
+  const single = game[`${key}SelectorId`];
+  return single ? [single] : [];
 }
 
 function calculateFieldTotals(board, fieldKey) {
@@ -129,23 +171,26 @@ function calculateFieldTotals(board, fieldKey) {
 
 function getRoundPrompt(game, playerId) {
   const player = game.players[playerId];
+  const isThreePlayer = game.playerOrder.length >= 3;
   switch (game.phase) {
     case "transfer":
       return player.pendingTransfer.length === 2
-        ? "상대의 카드 전송을 기다리는 중입니다."
-        : "손패에서 2장을 선택해 상대에게 전송하세요.";
+        ? "다른 플레이어들의 카드 전송을 기다리는 중입니다."
+        : (isThreePlayer
+          ? "1번째 선택은 왼쪽 상대, 2번째 선택은 오른쪽 상대에게 전송됩니다."
+          : "손패에서 2장을 선택해 상대에게 전송하세요.");
     case "play_simultaneous":
       return player.pendingPlay.length === game.playQuota[playerId]
-        ? "상대의 출격 선택을 기다리는 중입니다."
+        ? "다른 플레이어들의 출격 선택을 기다리는 중입니다."
         : `${game.playQuota[playerId]}장을 출격하세요.`;
     case "play_sequential_first":
-      return game.firstSelectorId === playerId
+      return getSelectorIds(game, "first").includes(playerId)
         ? `디지스캔 대응 중: 먼저 ${game.playQuota[playerId]}장을 출격하세요.`
-        : "상대가 먼저 출격을 선택하는 중입니다.";
+        : "디지스캔 플레이어가 대응하기 전, 다른 플레이어가 먼저 출격 중입니다.";
     case "play_sequential_second":
-      return game.secondSelectorId === playerId
-        ? `디지스캔 활성화: 상대 공개 후 ${game.playQuota[playerId]}장을 선택하세요.`
-        : "상대가 디지스캔 효과로 대응 중입니다.";
+      return getSelectorIds(game, "second").includes(playerId)
+        ? `디지스캔 활성화: 공개된 카드를 보고 ${game.playQuota[playerId]}장을 선택하세요.`
+        : "디지스캔 효과를 가진 플레이어가 대응 중입니다.";
     case "round_summary":
       return "카드 효과 처리 중입니다.";
     case "finished":
@@ -156,30 +201,27 @@ function getRoundPrompt(game, playerId) {
 }
 
 function createGame(room) {
-  const masterDeck = shuffle(CARD_POOL);
-  const roomPlayers = room.players.slice(0, 2);
-  const firstDeck = shuffle(masterDeck.slice(0, 18));
-  const secondDeck = shuffle(masterDeck.slice(18, 36));
+  const roomPlayers = room.players.slice(0, normalizeMaxPlayers(room.maxPlayers));
+  const playerCount = roomPlayers.length;
+  const masterDeck = createDealingDeck(playerCount);
+  const decks = roomPlayers.map((_, index) => shuffle(masterDeck.slice(index * 18, (index + 1) * 18)));
 
   const game = {
     round: 0,
     phase: "setup",
     status: "playing",
-    playerOrder: [roomPlayers[0].id, roomPlayers[1].id],
-    players: {
-      [roomPlayers[0].id]: createPlayerGameState(roomPlayers[0], firstDeck),
-      [roomPlayers[1].id]: createPlayerGameState(roomPlayers[1], secondDeck),
-    },
-    playQuota: {
-      [roomPlayers[0].id]: 1,
-      [roomPlayers[1].id]: 1,
-    },
-    scanActive: {
-      [roomPlayers[0].id]: false,
-      [roomPlayers[1].id]: false,
-    },
+    maxPlayers: playerCount,
+    playerOrder: roomPlayers.map((player) => player.id),
+    players: Object.fromEntries(roomPlayers.map((player, index) => [
+      player.id,
+      createPlayerGameState(player, decks[index]),
+    ])),
+    playQuota: Object.fromEntries(roomPlayers.map((player) => [player.id, 1])),
+    scanActive: Object.fromEntries(roomPlayers.map((player) => [player.id, false])),
     firstSelectorId: null,
     secondSelectorId: null,
+    firstSelectorIds: [],
+    secondSelectorIds: [],
     lastReveal: null,
     lastTransfer: null,
     lastDraw: null,
@@ -196,6 +238,8 @@ function startNextRound(game) {
   game.lastTransfer = null;
   game.firstSelectorId = null;
   game.secondSelectorId = null;
+  game.firstSelectorIds = [];
+  game.secondSelectorIds = [];
   if (game.round >= 8) {
     finalizeGame(game);
     return;
@@ -224,45 +268,58 @@ function enterPlayPhase(game) {
     player.pendingPlay = [];
   }
 
-  const [firstPlayerId, secondPlayerId] = game.playerOrder;
-  const firstScan = game.scanActive[firstPlayerId];
-  const secondScan = game.scanActive[secondPlayerId];
+  const scanPlayers = game.playerOrder.filter((playerId) => game.scanActive[playerId]);
+  const normalPlayers = game.playerOrder.filter((playerId) => !game.scanActive[playerId]);
 
-  if (firstScan && !secondScan) {
+  if (scanPlayers.length > 0 && normalPlayers.length > 0) {
     game.phase = "play_sequential_first";
-    game.firstSelectorId = secondPlayerId;
-    game.secondSelectorId = firstPlayerId;
-  } else if (!firstScan && secondScan) {
-    game.phase = "play_sequential_first";
-    game.firstSelectorId = firstPlayerId;
-    game.secondSelectorId = secondPlayerId;
+    game.firstSelectorIds = normalPlayers;
+    game.secondSelectorIds = scanPlayers;
+    game.firstSelectorId = normalPlayers[0] || null;
+    game.secondSelectorId = scanPlayers[0] || null;
   } else {
     game.phase = "play_simultaneous";
+    game.firstSelectorIds = [];
+    game.secondSelectorIds = [];
+    game.firstSelectorId = null;
+    game.secondSelectorId = null;
   }
 }
 
 function processTransfers(game) {
-  const [firstId, secondId] = game.playerOrder;
-  const firstPlayer = game.players[firstId];
-  const secondPlayer = game.players[secondId];
+  const sentByPlayer = {};
+  const receivedByPlayer = Object.fromEntries(game.playerOrder.map((playerId) => [playerId, []]));
 
-  const firstSent = firstPlayer.pendingTransfer.map((card) => ({ ...card }));
-  const secondSent = secondPlayer.pendingTransfer.map((card) => ({ ...card }));
+  for (const playerId of game.playerOrder) {
+    const player = game.players[playerId];
+    const sentCards = player.pendingTransfer.map((card) => ({ ...card }));
+    sentByPlayer[playerId] = sentCards;
 
-  secondPlayer.hand.push(...firstPlayer.pendingTransfer);
-  firstPlayer.hand.push(...secondPlayer.pendingTransfer);
+    if (game.playerOrder.length === 2) {
+      const opponentId = getOpponentId(game, playerId);
+      game.players[opponentId].hand.push(...player.pendingTransfer);
+      receivedByPlayer[opponentId].push(...sentCards);
+    } else {
+      const { leftId, rightId } = getCircularNeighborIds(game, playerId);
+      const [leftCard, rightCard] = player.pendingTransfer;
+      if (leftId && leftCard) {
+        game.players[leftId].hand.push(leftCard);
+        receivedByPlayer[leftId].push({ ...leftCard, fromPlayerId: playerId, direction: "left" });
+      }
+      if (rightId && rightCard) {
+        game.players[rightId].hand.push(rightCard);
+        receivedByPlayer[rightId].push({ ...rightCard, fromPlayerId: playerId, direction: "right" });
+      }
+    }
+  }
 
-  game.lastTransfer = {
-    byPlayer: {
-      [firstId]: firstSent,
-      [secondId]: secondSent,
-    },
-  };
+  game.lastTransfer = { byPlayer: sentByPlayer, receivedByPlayer };
 
-  firstPlayer.pendingTransfer = [];
-  secondPlayer.pendingTransfer = [];
-  firstPlayer.hand.sort(sortCards);
-  secondPlayer.hand.sort(sortCards);
+  for (const playerId of game.playerOrder) {
+    const player = game.players[playerId];
+    player.pendingTransfer = [];
+    player.hand.sort(sortCards);
+  }
 
   enterPlayPhase(game);
 }
@@ -310,60 +367,70 @@ function resolveRound(game) {
 }
 
 function finalizeGame(game) {
-  const [firstId, secondId] = game.playerOrder;
-  const firstPlayer = game.players[firstId];
-  const secondPlayer = game.players[secondId];
-
-  const totals = { [firstId]: 0, [secondId]: 0 };
+  const totals = Object.fromEntries(game.playerOrder.map((playerId) => [playerId, 0]));
   const fieldBreakdown = [];
 
   for (const field of FIELD_CONFIG) {
-    const firstTotal = calculateFieldTotals(firstPlayer.board, field.key);
-    const secondTotal = calculateFieldTotals(secondPlayer.board, field.key);
-    const firstRemaining = firstPlayer.hand.filter((card) => card.fieldKey === field.key);
-    const secondRemaining = secondPlayer.hand.filter((card) => card.fieldKey === field.key);
+    const playerRows = game.playerOrder.map((playerId) => {
+      const player = game.players[playerId];
+      const total = calculateFieldTotals(player.board, field.key);
+      const remaining = player.hand.filter((card) => card.fieldKey === field.key);
+      return {
+        id: playerId,
+        nickname: player.nickname,
+        total,
+        remaining,
+        used: player.usedField[field.key],
+      };
+    });
 
-    let firstScore = 0;
-    let secondScore = 0;
-    let control = "tie";
+    const highestTotal = Math.max(...playerRows.map((row) => row.total));
+    const controllers = highestTotal > 0
+      ? playerRows.filter((row) => row.total === highestTotal).map((row) => row.id)
+      : [];
 
-    if (firstTotal > secondTotal) control = firstId;
-    else if (secondTotal > firstTotal) control = secondId;
+    const playerBreakdown = playerRows.map((row) => {
+      let score = 0;
+      if (row.used) {
+        score = controllers.includes(row.id)
+          ? row.remaining.reduce((sum, card) => sum + card.power, 0)
+          : (row.remaining.length ? Math.min(...row.remaining.map((card) => card.power)) : 0);
+      }
+      totals[row.id] += score;
+      return {
+        id: row.id,
+        nickname: row.nickname,
+        total: row.total,
+        score,
+        used: row.used,
+      };
+    });
 
-    if (firstPlayer.usedField[field.key]) {
-      firstScore = control === firstId
-        ? firstRemaining.reduce((sum, card) => sum + card.power, 0)
-        : (firstRemaining.length ? Math.min(...firstRemaining.map((card) => card.power)) : 0);
-    }
-    if (secondPlayer.usedField[field.key]) {
-      secondScore = control === secondId
-        ? secondRemaining.reduce((sum, card) => sum + card.power, 0)
-        : (secondRemaining.length ? Math.min(...secondRemaining.map((card) => card.power)) : 0);
-    }
-
-    totals[firstId] += firstScore;
-    totals[secondId] += secondScore;
+    const first = playerBreakdown[0] || { total: 0, score: 0, used: false };
+    const second = playerBreakdown[1] || { total: 0, score: 0, used: false };
 
     fieldBreakdown.push({
       fieldKey: field.key,
       fieldName: field.name,
-      firstPlayerTotal: firstTotal,
-      secondPlayerTotal: secondTotal,
-      firstScore,
-      secondScore,
-      control,
-      firstUsed: firstPlayer.usedField[field.key],
-      secondUsed: secondPlayer.usedField[field.key],
+      control: controllers.length === 1 ? controllers[0] : "tie",
+      controllers,
+      playerBreakdown,
+      firstPlayerTotal: first.total,
+      secondPlayerTotal: second.total,
+      firstScore: first.score,
+      secondScore: second.score,
+      firstUsed: first.used,
+      secondUsed: second.used,
     });
   }
 
-  let winner = "draw";
-  if (totals[firstId] > totals[secondId]) winner = firstId;
-  if (totals[secondId] > totals[firstId]) winner = secondId;
+  const highestScore = Math.max(...Object.values(totals));
+  const winners = game.playerOrder.filter((playerId) => totals[playerId] === highestScore);
+  const winner = winners.length === 1 ? winners[0] : "draw";
 
   game.phase = "finished";
   game.status = "finished";
-  game.result = { totals, winner, fieldBreakdown, order: [...game.playerOrder] };
+  game.result = { totals, winner, winners, fieldBreakdown, order: [...game.playerOrder] };
 }
 
 function submitTransfer(game, playerId, cardIds) {
@@ -399,11 +466,11 @@ function submitPlay(game, playerId, cardIds) {
   }
 
   if (player.pendingPlay.length) return { ok: false, message: "이미 출격 카드를 제출했습니다." };
-  if (game.phase === "play_sequential_first" && game.firstSelectorId !== playerId) {
-    return { ok: false, message: "상대가 먼저 선택해야 합니다." };
+  if (game.phase === "play_sequential_first" && !getSelectorIds(game, "first").includes(playerId)) {
+    return { ok: false, message: "디지스캔 대응 플레이어가 아닙니다." };
   }
-  if (game.phase === "play_sequential_second" && game.secondSelectorId !== playerId) {
-    return { ok: false, message: "지금은 상대가 선택 중입니다." };
+  if (game.phase === "play_sequential_second" && !getSelectorIds(game, "second").includes(playerId)) {
+    return { ok: false, message: "지금은 디지스캔 플레이어가 선택 중입니다." };
   }
 
   const removed = removeCardsById(player.hand, cardIds);
@@ -417,12 +484,14 @@ function submitPlay(game, playerId, cardIds) {
   }
 
   if (game.phase === "play_sequential_first") {
-    game.phase = "play_sequential_second";
+    const firstReady = getSelectorIds(game, "first").every((id) => game.players[id].pendingPlay.length === game.playQuota[id]);
+    if (firstReady) game.phase = "play_sequential_second";
     return { ok: true };
   }
 
   if (game.phase === "play_sequential_second") {
-    resolveRound(game);
+    const secondReady = getSelectorIds(game, "second").every((id) => game.players[id].pendingPlay.length === game.playQuota[id]);
+    if (secondReady) resolveRound(game);
     return { ok: true };
   }
 
@@ -436,6 +505,7 @@ function buildRoomSummary(room) {
     isPrivate: room.isPrivate,
     status: room.status,
     createdAt: room.createdAt,
+    maxPlayers: normalizeMaxPlayers(room.maxPlayers),
     playerCount: room.players.length,
     players: room.players.map((player) => ({
       id: player.id,
@@ -448,6 +518,7 @@ function buildRoomSummary(room) {
 }
 
 function buildLobbyState(room, playerId) {
+  const maxPlayers = normalizeMaxPlayers(room.maxPlayers);
   return {
     code: room.code,
     name: room.name,
@@ -455,7 +526,8 @@ function buildLobbyState(room, playerId) {
     status: room.status,
     hostId: room.hostId,
     me: playerId,
-    canStart: room.players.length === 2 && room.players.every((player) => player.ready) && room.hostId === playerId,
+    maxPlayers,
+    canStart: room.players.length === maxPlayers && room.players.every((player) => player.ready) && room.hostId === playerId,
     players: room.players.map((player) => ({
       id: player.id,
       nickname: player.nickname,
@@ -468,24 +540,57 @@ function buildLobbyState(room, playerId) {
 
 function buildGameView(room, playerId) {
   const game = room.game;
-  const opponentId = getOpponentId(game, playerId);
+  const opponentIds = getOpponentIds(game, playerId);
+  const opponentId = opponentIds[0];
   const me = game.players[playerId];
+  const opponents = opponentIds.map((id, index) => {
+    const opponent = game.players[id];
+    const { leftId, rightId } = getCircularNeighborIds(game, playerId);
+    return {
+      id: opponent.id,
+      nickname: opponent.nickname,
+      deckCount: opponent.deck.length,
+      handCount: opponent.hand.length,
+      canPlayCount: game.playQuota[id],
+      scanActive: game.scanActive[id],
+      connected: room.players.some((player) => player.id === id),
+      relation: opponentIds.length === 1 ? "opponent" : (id === leftId ? "left" : id === rightId ? "right" : `opponent_${index + 1}`),
+    };
+  });
   const opponent = game.players[opponentId];
 
-  const fields = FIELD_CONFIG.map((field) => ({
-    key: field.key,
-    name: field.name,
-    short: field.short,
-    color: field.color,
-    myTotal: calculateFieldTotals(me.board, field.key),
-    oppTotal: calculateFieldTotals(opponent.board, field.key),
-    myPlayedCount: me.board[field.key].length,
-    oppPlayedCount: opponent.board[field.key].length,
-    myUsed: me.usedField[field.key],
-    oppUsed: opponent.usedField[field.key],
-    myCards: me.board[field.key].map((card) => ({ ...card })),
-    oppCards: opponent.board[field.key].map((card) => ({ ...card })),
-  }));
+  const fields = FIELD_CONFIG.map((field) => {
+    const players = game.playerOrder.map((id) => {
+      const player = game.players[id];
+      return {
+        id,
+        nickname: player.nickname,
+        total: calculateFieldTotals(player.board, field.key),
+        playedCount: player.board[field.key].length,
+        used: player.usedField[field.key],
+        cards: player.board[field.key].map((card) => ({ ...card })),
+        role: id === playerId ? "you" : "opponent",
+      };
+    });
+    const myRow = players.find((row) => row.id === playerId);
+    const oppRow = players.find((row) => row.id === opponentId) || { total: 0, playedCount: 0, used: false, cards: [] };
+    return {
+      key: field.key,
+      name: field.name,
+      short: field.short,
+      color: field.color,
+      players,
+      opponents: players.filter((row) => row.id !== playerId),
+      myTotal: myRow.total,
+      oppTotal: oppRow.total,
+      myPlayedCount: myRow.playedCount,
+      oppPlayedCount: oppRow.playedCount,
+      myUsed: myRow.used,
+      oppUsed: oppRow.used,
+      myCards: myRow.cards,
+      oppCards: oppRow.cards,
+    };
+  });
 
   let actionType = null;
   let canAct = false;
@@ -504,21 +609,20 @@ function buildGameView(room, playerId) {
     requiredCount = game.playQuota[playerId];
   } else if (game.phase === "play_sequential_first") {
     actionType = "play";
-    canAct = game.firstSelectorId === playerId && me.pendingPlay.length === 0;
+    canAct = getSelectorIds(game, "first").includes(playerId) && me.pendingPlay.length === 0;
     requiredCount = game.playQuota[playerId];
   } else if (game.phase === "play_sequential_second") {
     actionType = "play";
-    canAct = game.secondSelectorId === playerId && me.pendingPlay.length === 0;
+    canAct = getSelectorIds(game, "second").includes(playerId) && me.pendingPlay.length === 0;
     requiredCount = game.playQuota[playerId];
-    if (game.firstSelectorId && game.players[game.firstSelectorId].pendingPlay.length) {
-      peekCards = game.players[game.firstSelectorId].pendingPlay.map((card) => ({ ...card }));
-    }
+    peekCards = getSelectorIds(game, "first").flatMap((id) => game.players[id].pendingPlay.map((card) => ({ ...card, ownerId: id })));
   }
 
   return {
     mode: "online",
     code: room.code,
     name: room.name,
+    maxPlayers: normalizeMaxPlayers(room.maxPlayers),
     round: game.round,
     phase: game.phase,
     status: game.status,
@@ -533,7 +637,7 @@ function buildGameView(room, playerId) {
       scanActive: game.scanActive[playerId],
       doubleActive: game.playQuota[playerId] === 2,
     },
-    opponent: {
+    opponent: opponent ? {
       id: opponent.id,
       nickname: opponent.nickname,
       deckCount: opponent.deck.length,
@@ -541,7 +645,8 @@ function buildGameView(room, playerId) {
       canPlayCount: game.playQuota[opponentId],
       scanActive: game.scanActive[opponentId],
       connected: room.players.some((player) => player.id === opponentId),
-    },
+    } : null,
+    opponents,
     fields,
     actionType,
     canAct,
@@ -554,7 +659,8 @@ function buildGameView(room, playerId) {
     result: game.result ? { ...game.result, order: [...game.playerOrder] } : null,
     rematch: {
       requestedByYou: me.rematchWanted,
-      requestedByOpponent: opponent.rematchWanted,
+      requestedByOpponent: opponent ? opponent.rematchWanted : false,
+      requestedByOpponents: opponents.map((entry) => ({ id: entry.id, requested: !!game.players[entry.id].rematchWanted })),
     },
   };
 }
@@ -598,13 +704,18 @@ function clearRoomTimer(roomCode) {
     delete roundTimers[roomCode];
   }
 }
-function broadcastRoomList() {
-  const roomList = Object.values(rooms)
-    .filter((room) => !room.isPrivate && room.status === "lobby" && room.players.length > 0 && room.players.length < 2)
+function openPublicRooms(maxPlayers = null) {
+  const wanted = maxPlayers ? normalizeMaxPlayers(maxPlayers) : null;
+  return Object.values(rooms)
+    .filter((room) => !room.isPrivate && room.status === "lobby" && room.players.length > 0 && room.players.length < normalizeMaxPlayers(room.maxPlayers))
+    .filter((room) => !wanted || normalizeMaxPlayers(room.maxPlayers) === wanted)
     .sort((a, b) => b.createdAt - a.createdAt)
     .map((room) => buildRoomSummary(room));
-  io.emit("room_list", roomList);
 }
+function broadcastRoomList() {
+  io.emit("room_list", openPublicRooms());
+}
+
 function emitRoomUpdate(room) {
   for (const player of room.players) io.to(player.id).emit("room_update", buildLobbyState(room, player.id));
 }
@@ -655,6 +766,7 @@ function createRoom(socket, payload) {
   const nickname = String(payload.nickname || "").trim().slice(0, 16) || "테이머";
   const roomName = String(payload.roomName || "").trim().slice(0, 22) || "새 디지털 룸";
   const isPrivate = !!payload.isPrivate;
+  const maxPlayers = normalizeMaxPlayers(payload.maxPlayers);
 
   const currentRoom = getRoomBySocketId(socket.id);
   if (currentRoom) leaveRoom(socket, false);
@@ -667,6 +779,7 @@ function createRoom(socket, payload) {
     hostId: socket.id,
     createdAt: Date.now(),
     status: "lobby",
+    maxPlayers,
     players: [{ id: socket.id, nickname, ready: false, connected: true }],
     game: null,
   };
@@ -681,7 +794,7 @@ function joinRoom(socket, payload) {
   const nickname = String(payload.nickname || "").trim().slice(0, 16) || "테이머";
   const room = rooms[roomCode];
   if (!room) return socket.emit("error_message", "해당 방을 찾을 수 없습니다.");
-  if (room.players.length >= 2) return socket.emit("error_message", "이미 가득 찬 방입니다.");
+  if (room.players.length >= normalizeMaxPlayers(room.maxPlayers)) return socket.emit("error_message", "이미 가득 찬 방입니다.");
   if (room.status !== "lobby") return socket.emit("error_message", "이미 게임이 진행 중인 방입니다.");
 
   const currentRoom = getRoomBySocketId(socket.id);
@@ -733,8 +846,9 @@ function startGameRequest(socket) {
   const room = getRoomBySocketId(socket.id);
   if (!room) return;
   if (room.hostId !== socket.id) return socket.emit("error_message", "방장만 게임을 시작할 수 있습니다.");
-  if (room.players.length !== 2) return socket.emit("error_message", "2명이 모여야 시작할 수 있습니다.");
-  if (!room.players.every((player) => player.ready)) return socket.emit("error_message", "두 플레이어 모두 준비해야 합니다.");
+  const maxPlayers = normalizeMaxPlayers(room.maxPlayers);
+  if (room.players.length !== maxPlayers) return socket.emit("error_message", `${maxPlayers}명이 모여야 시작할 수 있습니다.`);
+  if (!room.players.every((player) => player.ready)) return socket.emit("error_message", "모든 플레이어가 준비해야 합니다.");
   startRoomGame(room);
 }
 function requestRematch(socket) {
@@ -749,16 +863,10 @@ function requestRematch(socket) {
 }
 
 io.on("connection", (socket) => {
-  socket.emit("room_list", Object.values(rooms)
-    .filter((room) => !room.isPrivate && room.status === "lobby" && room.players.length > 0 && room.players.length < 2)
-    .sort((a, b) => b.createdAt - a.createdAt)
-    .map((room) => buildRoomSummary(room)));
+  socket.emit("room_list", openPublicRooms());
 
-  socket.on("request_room_list", () => {
-    socket.emit("room_list", Object.values(rooms)
-      .filter((room) => !room.isPrivate && room.status === "lobby" && room.players.length > 0 && room.players.length < 2)
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .map((room) => buildRoomSummary(room)));
+  socket.on("request_room_list", (payload = {}) => {
+    socket.emit("room_list", openPublicRooms(payload.maxPlayers));
   });
   socket.on("create_room", (payload = {}) => createRoom(socket, payload));
   socket.on("join_room", (payload = {}) => joinRoom(socket, payload));
